@@ -1,0 +1,137 @@
+export interface Service {
+  id: string;
+  title: string;
+  description: string;
+  label: string; // CREATE, STRATEGY, MANAGE, ENGAGE, ANALYZE, PLAN
+  isPrimary?: boolean;
+}
+
+export interface Tool {
+  name: string;
+  description: string;
+  iconName: 'Canva' | 'Drive' | 'CapCut' | 'Instagram';
+}
+
+export interface ClientReference {
+  name: string;
+  status: 'freigegeben' | 'ausstehend' | 'klaerung';
+  format: string;
+  imageUrl?: string;
+  logoUrl?: string;
+  mediaType?: 'image' | 'video' | 'none';
+  reelLink?: string;
+  isSpotlight?: boolean;
+  testimonial?: {
+    text: string;
+    author: string;
+    role: string;
+  };
+}
+
+export interface ProcessStep {
+  stepNumber: number;
+  title: string;
+  description: string;
+}
+
+export interface HeroConfig {
+  logoText: string;
+  logoSubtext: string;
+  eyebrow: string;
+  headline: string;
+  subtitle: string;
+  primaryCta: string;
+  secondaryCta: string;
+  checklist: string[];
+}
+
+export interface BetweenSectionImageConfig {
+  imageUrl: string;
+  width: number;
+  borderRadius: 'none' | 'md' | 'xl' | 'full';
+  alignment: 'left' | 'center' | 'right';
+  marginTop: number;
+  marginBottom: number;
+  enabled: boolean;
+}
+
+export interface FooterConfig {
+  phone: string;
+  email: string;
+  instagram: string;
+  location: string;
+}
+
+export interface OnePagerStep {
+  label: string;
+  percentage: number;
+}
+
+export interface OnePagerConfig {
+  eyebrow: string;
+  ownerName: string;
+  title: string;
+  description: string;
+  steps: OnePagerStep[];
+  calloutText: string;
+  buttonLabel: string;
+  viewButtonLabel?: string;
+  subButtonLabel: string;
+  bottomDirectionsText: string;
+  documentUrl?: string;
+  documentFilename?: string;
+}
+
+export interface ServiceTextSection {
+  eyebrow?: string;
+  title?: string;
+  text: string;
+}
+
+export interface ServicesSectionConfig {
+  eyebrow: string;
+  title: string;
+  descriptions: (string | ServiceTextSection)[];
+}
+
+export interface ColorConfig {
+  accent: string;
+  accentBrightness: number;
+  brandDark: string;
+  brandDarkBrightness: number;
+  brandDarker: string;
+  brandDarkerBrightness: number;
+  brandDarkCard: string;
+  brandDarkCardBrightness: number;
+}
+
+export interface LandingPageData {
+  isFallback?: boolean;
+  hero: HeroConfig;
+  services: Service[];
+  tools: Tool[];
+  references: ClientReference[];
+  processes: ProcessStep[];
+  footer: FooterConfig;
+  betweenSectionImage?: BetweenSectionImageConfig;
+  contactImage?: BetweenSectionImageConfig;
+  onePager?: OnePagerConfig;
+  servicesSection?: ServicesSectionConfig;
+  colors?: ColorConfig;
+  calendly?: {
+    calendlyUrl?: string;
+    calendlyToken?: string;
+    isConnected?: boolean;
+    connectedEmail?: string;
+    syncInterval?: string;
+    bookings?: {
+      id: string;
+      name: string;
+      email: string;
+      eventType: string;
+      dateTime: string;
+      status: 'confirmed' | 'canceled';
+      notes?: string;
+    }[];
+  };
+}

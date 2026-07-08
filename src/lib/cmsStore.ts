@@ -1,0 +1,309 @@
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType, logSafeFirebaseError } from './firebase';
+import { LandingPageData } from '../types';
+import { SERVICES, TOOLS, REFERENCES, PROCESS_STEPS } from '../data';
+
+export const DEFAULT_PAGE_DATA: LandingPageData = {
+  hero: {
+    logoText: 'FLORIAN KUSCHE',
+    logoSubtext: 'INSTAGRAM MARKETING & CONTENT',
+    eyebrow: 'Instagram Marketing & Content',
+    headline: 'Mehr Anfragen. \nMehr Sichtbarkeit. \nKein Stress.',
+    subtitle: 'Ich übernehme deinen Instagram-Auftritt komplett, damit du dich auf dein Business konzentrieren kannst.',
+    primaryCta: 'Kostenloses Erstgespräch',
+    secondaryCta: 'Wie ich arbeite',
+    checklist: ['100% Betreut', 'Keine Vorkenntnisse Nötig', 'Transparente Monatsplanung']
+  },
+  services: SERVICES,
+  tools: TOOLS,
+  references: REFERENCES,
+  processes: PROCESS_STEPS,
+  footer: {
+    phone: '+49 151 28897623',
+    email: 'florian@floriankusche.de',
+    instagram: '@floriankusche.social',
+    location: 'Hannover, Deutschland'
+  },
+  betweenSectionImage: {
+    imageUrl: '',
+    width: 250,
+    borderRadius: 'xl',
+    alignment: 'left',
+    marginTop: 0,
+    marginBottom: 20,
+    enabled: false
+  },
+  contactImage: {
+    imageUrl: '',
+    width: 250,
+    borderRadius: 'xl',
+    alignment: 'left',
+    marginTop: 0,
+    marginBottom: 20,
+    enabled: false
+  },
+  onePager: {
+    eyebrow: 'STRATEGIE-AUFBAU',
+    ownerName: 'FLORIAN KUSCHE',
+    title: 'INSTAGRAM ERFOLGS-FAHRPLAN',
+    description: 'Der exakte Blueprint, mit dem ich deinen Account aufbaue und pflege, um konstante Sichtbarkeit und planbare Direktnachrichten-Leads zu erzeugen.',
+    steps: [
+      { label: '1. HOOK PSYCHOLOGIE', percentage: 85 },
+      { label: '2. VERKAUFSSTARKE CAROUSELS', percentage: 70 },
+      { label: '3. STORY-DIRECT-CTA', percentage: 92 }
+    ],
+    calloutText: 'Erzielt im Schnitt +240% Engagement-Wachstum.',
+    buttonLabel: 'ONE-PAGER LOGBUCH DOWNLOAD',
+    viewButtonLabel: 'ONE-PAGER LOGBUCH ANSEHEN',
+    subButtonLabel: 'TXT-DUMP • GRATIS HERUNTERLADEN',
+    bottomDirectionsText: '▲ KLICKE AUF DAS DOKUMENT, UM DIE INSTAGRAM-ERFOLGSFORMEL ALS TEXT HERUNTERZULADEN!',
+    documentUrl: '',
+    documentFilename: 'Florian_Kusche_Instagram_Strategie_OnePager.txt'
+  },
+  servicesSection: {
+    eyebrow: 'PORTFOLIO & LEISTUNGEN',
+    title: 'WIE ICH DEINE MARKE [UNSCHLAGBAR SICHTBAR] MACHE',
+    descriptions: [
+      'Mein Versprechen: Hochwertiger, strategischer Content, der deine Markenbotschaft trägt und aus Followern messbare Leads generiert. Komplett von mir abgewickelt, ohne Stress für dich.'
+    ]
+  },
+  colors: {
+    accent: '#ffcc00',
+    accentBrightness: 0,
+    brandDark: '#004369',
+    brandDarkBrightness: 0,
+    brandDarker: '#002d47',
+    brandDarkerBrightness: 0,
+    brandDarkCard: '#014e7a',
+    brandDarkCardBrightness: 0
+  },
+  calendly: {
+    calendlyUrl: 'https://calendly.com/floriankusche',
+    isConnected: false,
+    bookings: [
+      {
+        id: 'mock-1',
+        name: 'Sarah Becker',
+        email: 'sarah.becker@beispiel-gmbh.de',
+        eventType: '1:1 Instagram Strategie-Gespräch',
+        dateTime: '2026-07-01T10:00:00Z',
+        status: 'confirmed',
+        notes: 'Interesse an Full-Service Betreuung für unseren neuen Gastro-Account.'
+      },
+      {
+        id: 'mock-2',
+        name: 'Markus Weber',
+        email: 'm.weber@handwerk-weber.at',
+        eventType: 'Kennenlern-Call (15 Min)',
+        dateTime: '2026-07-02T14:30:00Z',
+        status: 'confirmed',
+        notes: 'Suchen jemanden für regelmäßige Reel-Produktion vor Ort.'
+      }
+    ]
+  }
+};
+
+function getLocalCache(): LandingPageData | null {
+  try {
+    const cached = localStorage.getItem('florian_cms_cache');
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    console.error('Error reading florian_cms_cache from localStorage:', e);
+  }
+  return null;
+}
+
+function setLocalCache(data: LandingPageData) {
+  try {
+    localStorage.setItem('florian_cms_cache', JSON.stringify(data));
+  } catch (e) {
+    console.error('Error writing florian_cms_cache to localStorage:', e);
+  }
+}
+
+/**
+ * Loads the current landing page configuration from Firestore,
+ * or returns the default hardcoded configuration if none exists yet.
+ * Resilient to Firestore Quota Exceeded errors via localStorage caching.
+ */
+export async function loadLandingPageData(): Promise<LandingPageData> {
+  try {
+    const configDocRef = doc(db, 'landing_pages', 'main');
+    const docSnap = await getDoc(configDocRef);
+
+    if (docSnap.exists()) {
+      const dbData = docSnap.data() as Partial<LandingPageData>;
+      
+      const pageData: LandingPageData = {
+        hero: { ...DEFAULT_PAGE_DATA.hero, ...(dbData.hero || {}) },
+        services: dbData.services || DEFAULT_PAGE_DATA.services,
+        tools: dbData.tools || DEFAULT_PAGE_DATA.tools,
+        references: dbData.references || DEFAULT_PAGE_DATA.references,
+        processes: dbData.processes || DEFAULT_PAGE_DATA.processes,
+        footer: { ...DEFAULT_PAGE_DATA.footer, ...(dbData.footer || {}) },
+        betweenSectionImage: dbData.betweenSectionImage 
+          ? { ...DEFAULT_PAGE_DATA.betweenSectionImage, ...dbData.betweenSectionImage }
+          : DEFAULT_PAGE_DATA.betweenSectionImage,
+        contactImage: dbData.contactImage
+          ? { ...DEFAULT_PAGE_DATA.contactImage, ...dbData.contactImage }
+          : DEFAULT_PAGE_DATA.contactImage,
+        onePager: dbData.onePager
+          ? { ...DEFAULT_PAGE_DATA.onePager, ...dbData.onePager }
+          : { ...DEFAULT_PAGE_DATA.onePager! },
+        servicesSection: dbData.servicesSection
+          ? { ...DEFAULT_PAGE_DATA.servicesSection, ...dbData.servicesSection, descriptions: dbData.servicesSection.descriptions || DEFAULT_PAGE_DATA.servicesSection.descriptions }
+          : { ...DEFAULT_PAGE_DATA.servicesSection! },
+        colors: dbData.colors
+          ? { ...DEFAULT_PAGE_DATA.colors, ...dbData.colors }
+          : DEFAULT_PAGE_DATA.colors,
+        calendly: dbData.calendly
+          ? { ...DEFAULT_PAGE_DATA.calendly, ...dbData.calendly }
+          : DEFAULT_PAGE_DATA.calendly
+      };
+
+      // Handle reconstructing chunked files
+      if (pageData.onePager?.documentUrl === 'chunked://onepager') {
+        try {
+          const metaSnap = await getDoc(doc(db, 'landing_page_chunks', 'onepager'));
+          if (metaSnap.exists()) {
+            const { totalChunks } = metaSnap.data();
+            if (typeof totalChunks === 'number' && totalChunks > 0) {
+              const chunkPromises = [];
+              for (let i = 0; i < totalChunks; i++) {
+                chunkPromises.push(getDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${i}`)));
+              }
+              const chunkSnaps = await Promise.all(chunkPromises);
+              let fullBase64 = '';
+              for (const snap of chunkSnaps) {
+                if (snap.exists()) {
+                  fullBase64 += snap.data().chunk || '';
+                }
+              }
+              if (fullBase64) {
+                pageData.onePager.documentUrl = fullBase64;
+              }
+            }
+          }
+        } catch (err) {
+          logSafeFirebaseError('Error reassembling chunked PDF', err);
+        }
+      }
+
+      setLocalCache(pageData);
+      return pageData;
+    }
+  } catch (error: any) {
+    if (error?.code === 'permission-denied' || error?.message?.includes('permission')) {
+      handleFirestoreError(error, OperationType.GET, 'landing_pages/main');
+    }
+    logSafeFirebaseError('Error fetching landing page data from Firebase, falling back to local defaults', error);
+  }
+
+  // Fallback chain: Firestore failed/quota-exceeded -> Local Cache -> hardcoded DEFAULT_PAGE_DATA
+  const cached = getLocalCache();
+  if (cached) {
+    console.log('Successfully recovered landing page data from local storage cache.');
+    return cached;
+  }
+  return { ...DEFAULT_PAGE_DATA, isFallback: true };
+}
+
+/**
+ * Saves/Publishes the landing page configuration to Firestore and saves it to local cache.
+ */
+export async function saveLandingPageData(data: LandingPageData): Promise<void> {
+  const dataCopy = JSON.parse(JSON.stringify(data)) as LandingPageData;
+  delete dataCopy.isFallback;
+
+  // Always update local cache first
+  setLocalCache(dataCopy);
+
+  const configDocRef = doc(db, 'landing_pages', 'main');
+  try {
+
+    // Check if the file is too large and needs chunking (> 800 KB characters)
+    const docUrl = dataCopy.onePager?.documentUrl || '';
+    if (docUrl.startsWith('data:') && docUrl.length > 800000) {
+      const chunkSize = 700000;
+      const chunks: string[] = [];
+      for (let i = 0; i < docUrl.length; i += chunkSize) {
+        chunks.push(docUrl.substring(i, i + chunkSize));
+      }
+
+      // 1. Write chunks metadata
+      await setDoc(doc(db, 'landing_page_chunks', 'onepager'), {
+        totalChunks: chunks.length,
+        filename: dataCopy.onePager?.documentFilename || 'document',
+        updatedAt: new Date().toISOString()
+      });
+
+      // 2. Write individual chunk documents
+      const chunkWrites = chunks.map((chunk, index) => 
+        setDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${index}`), { chunk })
+      );
+      await Promise.all(chunkWrites);
+
+      // 3. Update main reference to point to chunks
+      if (dataCopy.onePager) {
+        dataCopy.onePager.documentUrl = 'chunked://onepager';
+      }
+    }
+
+    await setDoc(configDocRef, dataCopy);
+  } catch (error: any) {
+    handleFirestoreError(error, OperationType.WRITE, 'landing_pages/main');
+  }
+}
+
+export function subscribeLandingPageData(callback: (data: LandingPageData) => void, onError?: (err: any) => void): () => void {
+  const configDocRef = doc(db, 'landing_pages', 'main');
+  
+  return onSnapshot(configDocRef, async (docSnap) => {
+    if (docSnap.exists()) {
+      const dbData = docSnap.data() as Partial<LandingPageData>;
+      
+      const pageData: LandingPageData = {
+        hero: { ...DEFAULT_PAGE_DATA.hero, ...(dbData.hero || {}) },
+        services: dbData.services || DEFAULT_PAGE_DATA.services,
+        tools: dbData.tools || DEFAULT_PAGE_DATA.tools,
+        references: dbData.references || DEFAULT_PAGE_DATA.references,
+        processes: dbData.processes || DEFAULT_PAGE_DATA.processes,
+        footer: { ...DEFAULT_PAGE_DATA.footer, ...(dbData.footer || {}) },
+        betweenSectionImage: dbData.betweenSectionImage 
+          ? { ...DEFAULT_PAGE_DATA.betweenSectionImage, ...dbData.betweenSectionImage }
+          : DEFAULT_PAGE_DATA.betweenSectionImage,
+        contactImage: dbData.contactImage
+          ? { ...DEFAULT_PAGE_DATA.contactImage, ...dbData.contactImage }
+          : DEFAULT_PAGE_DATA.contactImage,
+        onePager: dbData.onePager
+          ? { ...DEFAULT_PAGE_DATA.onePager, ...dbData.onePager }
+          : { ...DEFAULT_PAGE_DATA.onePager! },
+        servicesSection: dbData.servicesSection
+          ? { ...DEFAULT_PAGE_DATA.servicesSection, ...dbData.servicesSection, descriptions: dbData.servicesSection.descriptions || DEFAULT_PAGE_DATA.servicesSection.descriptions }
+          : { ...DEFAULT_PAGE_DATA.servicesSection! },
+        colors: dbData.colors
+          ? { ...DEFAULT_PAGE_DATA.colors, ...dbData.colors }
+          : DEFAULT_PAGE_DATA.colors,
+        calendly: dbData.calendly
+          ? { ...DEFAULT_PAGE_DATA.calendly, ...dbData.calendly }
+          : DEFAULT_PAGE_DATA.calendly
+      };
+
+      // Reconstruct chunks logic if needed
+      // To keep real-time fast, we might skip chunked reconstruct on every tick unless needed
+      
+      setLocalCache(pageData);
+      callback(pageData);
+    } else {
+       // Return local cache or default
+       const cached = getLocalCache();
+       if (cached) callback(cached);
+       else callback({ ...DEFAULT_PAGE_DATA, isFallback: true });
+    }
+  }, (err) => {
+    logSafeFirebaseError('Error listening to landing page data', err);
+    if (onError) onError(err);
+  });
+}
