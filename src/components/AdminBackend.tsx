@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError } from '../lib/firebase';
 import { loadLandingPageData, saveLandingPageData, DEFAULT_PAGE_DATA } from '../lib/cmsStore';
 import { LandingPageData, Service, Tool, ClientReference, ProcessStep, ColorConfig } from '../types';
 import ImageUploader from './ImageUploader';
@@ -103,7 +103,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
   const getAdminCredentials = async () => {
     try {
       const docRef = doc(db, 'admin_credentials', 'settings');
-      const docSnap = await getDoc(docRef);
+      const docSnap = await withTimeout(getDoc(docRef), 3000, 'offline');
       if (docSnap.exists()) {
         const d = docSnap.data();
         return {
@@ -116,7 +116,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
           password: 'WunderBaum188!'
         };
         try {
-          await setDoc(docRef, defaultCreds);
+          await withTimeout(setDoc(docRef, defaultCreds), 3000, 'offline');
         } catch (setErr: any) {
           if (setErr?.code === 'permission-denied' || setErr?.message?.includes('permission')) {
             handleFirestoreError(setErr, OperationType.WRITE, 'admin_credentials/settings');
@@ -244,7 +244,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
         payload.password = creds.password;
       }
 
-      await setDoc(docRef, payload);
+      await withTimeout(setDoc(docRef, payload), 3000, 'offline');
 
       // Successfully updated! Update local states and storage
       setUser({ email: payload.email, uid: 'admin-session' });
@@ -291,7 +291,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
       setTimeout(() => setSaveStatus('idle'), 4000);
     } catch (err: any) {
       logSafeFirebaseError('Error saving or publishing CMS data', err);
-      if (isQuotaError(err)) {
+      if (isQuotaError(err) || isOfflineError(err)) {
         // Save to local cache first to ensure zero data loss
         const cleanData = JSON.parse(JSON.stringify(cmsData)) as LandingPageData;
         delete cleanData.isFallback;
@@ -700,7 +700,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
       await saveLandingPageData(updatedData);
     } catch (err: any) {
       logSafeFirebaseError('Fehler beim Auto-Speichern nach dem Löschen', err);
-      if (isQuotaError(err)) {
+      if (isQuotaError(err) || isOfflineError(err)) {
         setCmsData({ ...updatedData, isFallback: true });
       }
     }
@@ -730,7 +730,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
       }, 3000);
     } catch (err: any) {
       logSafeFirebaseError('Fehler beim Speichern der Referenz in der Datenbank', err);
-      if (isQuotaError(err)) {
+      if (isQuotaError(err) || isOfflineError(err)) {
         setCmsData({ ...cmsData, isFallback: true });
         setSavedReferenceIdx(idx);
         setTimeout(() => {
@@ -1037,12 +1037,12 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
             <div className="bg-amber-50 text-amber-900 p-4 border-l-4 border-amber-500 rounded text-sm mb-6 flex items-start gap-3 shadow-md">
               <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <strong className="font-bold block text-base text-amber-950 mb-1">Hinweis: Firebase-Speicherlimit (Google Quota) erreicht</strong>
+                <strong className="font-bold block text-base text-amber-950 mb-1">Hinweis: Offline-Modus aktiv (Keine Serververbindung)</strong>
                 <span className="text-xs text-amber-800 leading-relaxed block">
-                  Deine echten Texte und Einstellungen sind <strong>absolut sicher in der Cloud gespeichert</strong>! Wegen des täglichen Google Firebase Free-Tier Leselimits wird aktuell ein schreibgeschützter Fallback geladen.
+                  Deine echten Texte und Einstellungen sind <strong>absolut sicher in der Cloud gespeichert</strong>! Aufgrund von Verbindungsproblemen zur Datenbank (Offline) oder Server-Limits wird aktuell ein schreibgeschützter Offline-Modus geladen.
                 </span>
                 <span className="text-xs text-amber-800 leading-relaxed block mt-1">
-                  <strong>Schutz vor Datenverlust aktiv:</strong> Um deine echten Cloud-Daten zu sichern, haben wir das Überschreiben der Cloud blockiert. Wenn du jetzt Änderungen vornimmst und auf <strong>&bdquo;Veröffentlichen&ldquo;</strong> klickst, speichern wir deine Anpassungen sicher in deinem lokalen Browser-Cache, anstatt die Cloud zu überschreiben. Sobald das Limit von Google zurückgesetzt wird (meistens um Mitternacht), wird dein cloud-gespeicherter Content automatisch wieder geladen!
+                  <strong>Schutz vor Datenverlust aktiv:</strong> Um deine echten Cloud-Daten zu sichern, haben wir das Überschreiben der Cloud blockiert. Wenn du jetzt Änderungen vornimmst und auf <strong>&bdquo;Veröffentlichen&ldquo;</strong> klickst, speichern wir deine Anpassungen sicher in deinem lokalen Browser-Cache, anstatt die Cloud zu überschreiben. Sobald die Verbindung wiederhergestellt ist, wird dein cloud-gespeicherter Content automatisch wieder synchronisiert!
                 </span>
               </div>
             </div>

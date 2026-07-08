@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError } from './firebase';
+import { db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError } from './firebase';
 import { LandingPageData } from '../types';
 import { SERVICES, TOOLS, REFERENCES, PROCESS_STEPS } from '../data';
 
@@ -131,7 +131,7 @@ function setLocalCache(data: LandingPageData) {
 export async function loadLandingPageData(): Promise<LandingPageData> {
   try {
     const configDocRef = doc(db, 'landing_pages', 'main');
-    const docSnap = await getDoc(configDocRef);
+    const docSnap = await withTimeout(getDoc(configDocRef), 5000, 'offline');
 
     if (docSnap.exists()) {
       const dbData = docSnap.data() as Partial<LandingPageData>;
@@ -166,13 +166,13 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
       // Handle reconstructing chunked files
       if (pageData.onePager?.documentUrl === 'chunked://onepager') {
         try {
-          const metaSnap = await getDoc(doc(db, 'landing_page_chunks', 'onepager'));
+          const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'onepager')), 5000, 'offline');
           if (metaSnap.exists()) {
             const { totalChunks } = metaSnap.data();
             if (typeof totalChunks === 'number' && totalChunks > 0) {
               const chunkPromises = [];
               for (let i = 0; i < totalChunks; i++) {
-                chunkPromises.push(getDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${i}`)));
+                chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${i}`)), 5000, 'offline'));
               }
               const chunkSnaps = await Promise.all(chunkPromises);
               let fullBase64 = '';
@@ -213,6 +213,14 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
 /**
  * Saves/Publishes the landing page configuration to Firestore and saves it to local cache.
  */
+
+const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string = 'Timeout'): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+  ]);
+};
+
 export async function saveLandingPageData(data: LandingPageData): Promise<void> {
   const dataCopy = JSON.parse(JSON.stringify(data)) as LandingPageData;
   delete dataCopy.isFallback;
@@ -233,15 +241,15 @@ export async function saveLandingPageData(data: LandingPageData): Promise<void> 
       }
 
       // 1. Write chunks metadata
-      await setDoc(doc(db, 'landing_page_chunks', 'onepager'), {
+      await withTimeout(setDoc(doc(db, 'landing_page_chunks', 'onepager'), {
         totalChunks: chunks.length,
         filename: dataCopy.onePager?.documentFilename || 'document',
         updatedAt: new Date().toISOString()
-      });
+      }), 5000, 'offline');
 
       // 2. Write individual chunk documents
       const chunkWrites = chunks.map((chunk, index) => 
-        setDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${index}`), { chunk })
+        withTimeout(setDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${index}`), { chunk }), 5000, 'offline')
       );
       await Promise.all(chunkWrites);
 
@@ -251,7 +259,7 @@ export async function saveLandingPageData(data: LandingPageData): Promise<void> 
       }
     }
 
-    await setDoc(configDocRef, dataCopy);
+    await withTimeout(setDoc(configDocRef, dataCopy), 5000, 'offline');
   } catch (error: any) {
     handleFirestoreError(error, OperationType.WRITE, 'landing_pages/main');
   }
@@ -305,6 +313,6 @@ export function subscribeLandingPageData(callback: (data: LandingPageData) => vo
     else callback({ ...DEFAULT_PAGE_DATA, isFallback: true });
     
     // Only propagate non-quota errors to avoid console spam and false alarms
-    if (onError && !isQuotaError(err)) onError(err);
+    if (onError && !isQuotaError(err) && !isOfflineError(err)) onError(err);
   });
 }
