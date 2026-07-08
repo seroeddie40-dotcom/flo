@@ -27,12 +27,14 @@ export default function CookieBanner({
       try {
         const parsed = JSON.parse(savedConsent) as CookieSettings;
         setSettings(parsed);
+        // Important: this relies on the parent's handler
         onAcceptThirdParty(parsed.thirdParty);
       } catch {
         setIsOpen(true);
       }
     }
-  }, [onAcceptThirdParty]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAcceptAll = () => {
     const allAccepted = { necessary: true, thirdParty: true };

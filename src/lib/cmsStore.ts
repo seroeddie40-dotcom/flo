@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, logSafeFirebaseError } from './firebase';
+import { db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError } from './firebase';
 import { LandingPageData } from '../types';
 import { SERVICES, TOOLS, REFERENCES, PROCESS_STEPS } from '../data';
 
@@ -291,19 +291,20 @@ export function subscribeLandingPageData(callback: (data: LandingPageData) => vo
           : DEFAULT_PAGE_DATA.calendly
       };
 
-      // Reconstruct chunks logic if needed
-      // To keep real-time fast, we might skip chunked reconstruct on every tick unless needed
-      
       setLocalCache(pageData);
       callback(pageData);
     } else {
-       // Return local cache or default
        const cached = getLocalCache();
        if (cached) callback(cached);
        else callback({ ...DEFAULT_PAGE_DATA, isFallback: true });
     }
   }, (err) => {
     logSafeFirebaseError('Error listening to landing page data', err);
-    if (onError) onError(err);
+    const cached = getLocalCache();
+    if (cached) callback(cached);
+    else callback({ ...DEFAULT_PAGE_DATA, isFallback: true });
+    
+    // Only propagate non-quota errors to avoid console spam and false alarms
+    if (onError && !isQuotaError(err)) onError(err);
   });
 }

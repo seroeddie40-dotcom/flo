@@ -7,7 +7,8 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
-  ignoreUndefinedProperties: true
+  ignoreUndefinedProperties: true,
+  experimentalForceLongPolling: true
 }, firebaseConfig.firestoreDatabaseId);
 
 export enum OperationType {
@@ -49,13 +50,16 @@ export function isQuotaError(err: unknown): boolean {
     errMsg.includes('exhausted') ||
     errMsg.includes('rate exceeded') ||
     errMsg.includes('rate limit') ||
-    errMsg.includes('exceeded')
+    errMsg.includes('exceeded') ||
+    errMsg.includes('offline') ||
+    errMsg.includes('unavailable') ||
+    errCode === 'unavailable'
   );
 }
 
 export function logSafeFirebaseError(contextMessage: string, err: any) {
   if (isQuotaError(err)) {
-    console.warn(`${contextMessage}: Firebase is currently in read-only local fallback mode due to server limits.`);
+    console.warn(`${contextMessage}: Firebase is currently in read-only local fallback mode due to server limits or offline status.`);
   } else {
     console.error(contextMessage, err);
   }
