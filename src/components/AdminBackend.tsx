@@ -54,6 +54,13 @@ function getInstagramEmbedUrl(url: string | undefined): string | null {
   return null;
 }
 
+const withTimeout = <T,>(promise: Promise<T>, ms: number, errorMessage: string = 'Timeout'): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+  ]);
+};
+
 export default function AdminBackend({ onClose }: { onClose: () => void }) {
   // Authentication states
   const [user, setUser] = useState<{ email: string; uid: string } | null>(null);

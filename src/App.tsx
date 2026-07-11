@@ -13,6 +13,7 @@ import ContactForm from './components/ContactForm';
 import LegalSection from './components/LegalSection';
 import OnePagerMockup from './components/OnePagerMockup';
 import AdminBackend from './components/AdminBackend';
+import WhatsAppPopup from './components/WhatsAppPopup';
 
 import { loadLandingPageData, subscribeLandingPageData } from './lib/cmsStore';
 import { LandingPageData } from './types';
@@ -403,6 +404,12 @@ export default function App() {
           window.location.hash = '';
         }} />
       )}
+
+      {/* 12. Floating WhatsApp Interactive Popup Widget */}
+      <WhatsAppPopup 
+        phone={pageData?.footer?.phone} 
+        avatarUrl={pageData?.betweenSectionImage?.imageUrl || pageData?.contactImage?.imageUrl} 
+      />
 
     </div>
   );
