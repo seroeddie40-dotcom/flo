@@ -83,7 +83,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
   const [backendPhoneScale, setBackendPhoneScale] = useState<number>(1.0);
 
   // Active WP Sidebar Tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'hero' | 'onepager' | 'leistungen' | 'tools' | 'referenzen' | 'calendly' | 'prozess' | 'contact' | 'colors' | 'credentials'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'hero' | 'about' | 'onepager' | 'leistungen' | 'tools' | 'referenzen' | 'calendly' | 'prozess' | 'contact' | 'colors' | 'footer' | 'credentials'>('dashboard');
 
   // Sub-editor state for edit popups
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -399,6 +399,27 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
     });
   };
 
+  const updateFehrmannStatsFields = (fields: Record<string, string>) => {
+    if (!cmsData) return;
+    const defaultFehrmannStats = {
+      aufrufe: '+ 270 %',
+      reichweite: '+ 2.000 %',
+      interaktion: '+ 9.000 %'
+    };
+
+    setCmsData(prev => {
+      if (!prev) return prev;
+      const currentFehrmannStats = prev.fehrmannStats || defaultFehrmannStats;
+      return {
+        ...prev,
+        fehrmannStats: {
+          ...currentFehrmannStats,
+          ...fields
+        }
+      };
+    });
+  };
+
   const updateOnePagerField = (field: string, value: any) => {
     updateOnePagerFields({ [field]: value });
   };
@@ -465,6 +486,45 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
       contactImage: {
         ...defaultImageConfig,
         ...(cmsData.contactImage || {}),
+        [field]: value
+      }
+    });
+  };
+
+  const updateAboutField = (field: string, value: any) => {
+    if (!cmsData) return;
+    const defaultAboutConfig = {
+      enabled: true,
+      eyebrow: 'Seit 2004 im Vertrieb, seit 2017 selbstständig.',
+      title: 'Wer steckt dahinter',
+      text: 'Ich kenne beide Seiten: was Kunden wirklich überzeugt, und wie man das sichtbar macht. Deshalb arbeite ich ausschließlich mit Instagram, dafür richtig. Mein Tool-Stack: Canva Business, CapCut, Google Drive und Trello für die Organisation, dazu KI-gestützte Tools für Recherche und Konzeption.',
+      imageEnabled: true,
+      imageUrl: ''
+    };
+    setCmsData({
+      ...cmsData,
+      about: {
+        ...defaultAboutConfig,
+        ...(cmsData.about || {}),
+        [field]: value
+      }
+    });
+  };
+
+  const updateTrustBlockField = (field: string, value: any) => {
+    if (!cmsData) return;
+    const defaultTrustBlockConfig = {
+      title: 'Keine Schnupperangebote.',
+      subtitle: 'Klare Verbindlichkeit.',
+      paragraph1: 'Ich glaube an nachhaltiges Wachstum und erstklassigen Service. Social Media funktioniert nicht über Nacht. Der beste und fairste Einstieg ist das kostenlose Erstgespräch, bei dem wir deine langfristigen Potenziale ermitteln.',
+      paragraph2: 'Ich verkaufe keine Wunder. Ich arbeite mit dem, was an deinem Business, deinem Team oder deinem Handwerk bereits überzeugt, und mache genau das sichtbar. Keine übertriebenen Reichweiten-Versprechen, sondern realistische, nachvonziehbare Ergebnisse.',
+      buttonText: 'Kostenloses Erstgespräch buchen'
+    };
+    setCmsData({
+      ...cmsData,
+      trustBlock: {
+        ...defaultTrustBlockConfig,
+        ...(cmsData.trustBlock || {}),
         [field]: value
       }
     });
@@ -906,6 +966,16 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
               <span>Customizer - Hero</span>
             </button>
 
+            <button
+              onClick={() => setActiveTab('about')}
+              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
+                activeTab === 'about' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
+              }`}
+            >
+              <UserIcon className="w-4 h-4 shrink-0" />
+              <span>Über mich (Portrait)</span>
+            </button>
+
 
 
             <button
@@ -979,6 +1049,16 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
             </button>
 
             <button
+              onClick={() => setActiveTab('footer')}
+              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
+                activeTab === 'footer' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
+              }`}
+            >
+              <Layers className="w-4 h-4 shrink-0" />
+              <span>Footer</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('credentials')}
               className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
                 activeTab === 'credentials' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
@@ -1005,6 +1085,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
               <h2 className="text-2xl font-semibold capitalize text-zinc-900 tracking-tight flex items-center gap-2">
                 {activeTab === 'dashboard' && 'Dashboard'}
                 {activeTab === 'hero' && 'Landing-Page-Hero bearbeiten'}
+                {activeTab === 'about' && 'Über mich ("Wer steckt dahinter")'}
                 {activeTab === 'onepager' && 'One-Pager & Dokumentenupload verwalten'}
                 {activeTab === 'leistungen' && 'Leistungsspektrum konfigurieren'}
                 {activeTab === 'tools' && 'Ihre Partner-Tools verwalten'}
@@ -1013,6 +1094,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                 {activeTab === 'prozess' && 'Ablaufschritte bearbeiten'}
                 {activeTab === 'contact' && 'Kontakt & Footer-Metadaten'}
                 {activeTab === 'colors' && 'Farben & Helligkeit anpassen'}
+                {activeTab === 'footer' && 'Footer & rechtliche Inhalte verwalten'}
                 {activeTab === 'credentials' && 'Admin-Zugangsdaten bearbeiten'}
                 <span className="text-xs bg-zinc-200 text-zinc-600 border border-zinc-300 px-2 py-0.5 rounded font-mono font-medium">v1.1</span>
               </h2>
@@ -1426,6 +1508,97 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* TAB: ABOUT CONFIG */}
+                {activeTab === 'about' && cmsData && (
+                  <div className="bg-white border border-zinc-200 p-6 rounded-xl shadow-sm space-y-6 max-w-4xl pb-12 font-sans">
+                    <div>
+                      <h3 className="text-base font-bold text-zinc-900 border-b border-zinc-200 pb-2">Sektion "Wer steckt dahinter" (Über mich) bearbeiten</h3>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Passe die Portrait-Sektion über dich, deine Erfahrungen, deinen Tool-Stack und dein Profilbild an.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="about_enabled"
+                        checked={cmsData.about?.enabled !== false}
+                        onChange={(e) => updateAboutField('enabled', e.target.checked)}
+                        className="w-4 h-4 text-[#0073aa] border-zinc-300 focus:ring-[#0073aa] rounded cursor-pointer animate-none"
+                      />
+                      <label htmlFor="about_enabled" className="text-xs font-bold text-zinc-700 uppercase tracking-wider cursor-pointer">
+                        Sektion auf Website anzeigen
+                      </label>
+                    </div>
+
+                    {cmsData.about?.enabled !== false && (
+                      <div className="space-y-6 pt-4 border-t border-zinc-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Kategorie / Eyebrow (Über Headline)</label>
+                            <input
+                              type="text"
+                              value={cmsData.about?.eyebrow || ''}
+                              onChange={(e) => updateAboutField('eyebrow', e.target.value)}
+                              className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Überschrift</label>
+                            <input
+                              type="text"
+                              value={cmsData.about?.title || ''}
+                              onChange={(e) => updateAboutField('title', e.target.value)}
+                              className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Über mich Text (Unterstützt Zeilenbrüche)</label>
+                          <textarea
+                            rows={6}
+                            value={cmsData.about?.text || ''}
+                            onChange={(e) => updateAboutField('text', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 leading-relaxed font-sans"
+                          />
+                        </div>
+
+                        <div className="h-[1px] bg-zinc-200"></div>
+
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider mb-3">Foto / Portrait einstellungen</h4>
+                          <div className="flex items-center gap-2 mb-4">
+                            <input
+                              type="checkbox"
+                              id="about_image_enabled"
+                              checked={cmsData.about?.imageEnabled !== false}
+                              onChange={(e) => updateAboutField('imageEnabled', e.target.checked)}
+                              className="w-4 h-4 text-[#0073aa] border-zinc-300 focus:ring-[#0073aa] rounded cursor-pointer"
+                            />
+                            <label htmlFor="about_image_enabled" className="text-xs font-bold text-zinc-700 uppercase tracking-wider cursor-pointer">
+                              Portrait-Foto anzeigen
+                            </label>
+                          </div>
+
+                          {cmsData.about?.imageEnabled !== false && (
+                            <div className="max-w-md p-4 bg-zinc-50 border border-zinc-200 rounded-lg">
+                              <ImageUploader
+                                id="about-portrait-upload"
+                                label="Eigenes Portrait-Foto hochladen"
+                                currentValue={cmsData.about?.imageUrl || ''}
+                                onChange={(val) => updateAboutField('imageUrl', val)}
+                              />
+                              <p className="text-[10px] text-zinc-500 mt-2 font-mono">Empfohlenes Format: Hochkant (3:4 oder ähnlich), hohe Auflösung, gute Ausleuchtung.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1892,6 +2065,46 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                                   onChange={(e) => setEditingService({ ...editingService, label: e.target.value })}
                                   className="w-full p-2.5 border border-[#0073aa] rounded text-zinc-900"
                                 />
+                              </div>
+                              <div>
+                                <label className="block font-bold text-[#0073aa] label mb-1 uppercase tracking-wider">Unterpunkte / Bullet Points</label>
+                                <div className="space-y-2 border border-zinc-200 p-3 rounded bg-zinc-50 max-h-40 overflow-y-auto">
+                                  {(editingService.features || getServiceFeatures(editingService)).map((feat, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        value={feat}
+                                        onChange={(e) => {
+                                          const updatedFeats = [...(editingService.features || getServiceFeatures(editingService))];
+                                          updatedFeats[idx] = e.target.value;
+                                          setEditingService({ ...editingService, features: updatedFeats });
+                                        }}
+                                        className="flex-1 p-1.5 border border-zinc-300 rounded text-xs text-zinc-900 bg-white"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updatedFeats = (editingService.features || getServiceFeatures(editingService)).filter((_, i) => i !== idx);
+                                          setEditingService({ ...editingService, features: updatedFeats });
+                                        }}
+                                        className="p-1 px-2 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs font-black"
+                                        title="Löschen"
+                                      >
+                                        &times;
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentFeats = editingService.features || getServiceFeatures(editingService) || [];
+                                      setEditingService({ ...editingService, features: [...currentFeats, 'Neuer Punkt'] });
+                                    }}
+                                    className="w-full py-1 bg-white hover:bg-zinc-100 text-zinc-700 rounded text-xs font-bold border border-dashed border-zinc-400 mt-1 cursor-pointer"
+                                  >
+                                    + Punkt hinzufügen
+                                  </button>
+                                </div>
                               </div>
                               <div className="flex items-center gap-2 pt-2">
                                 <input
@@ -2464,6 +2677,84 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                       </div>
 
                     </div>
+
+                    {/* FEHRMANN GRAPHICAL STATS CONFIGURATION */}
+                    <div className="bg-white border border-zinc-200 p-6 rounded-xl shadow-sm space-y-6">
+                      <div className="border-b border-zinc-100 pb-3">
+                        <h3 className="text-base font-bold text-zinc-900 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 bg-accent rounded-full"></span>
+                          Statistik-Grafik für Fehrmann Glas & Design
+                        </h3>
+                        <p className="text-xs text-zinc-500 mt-1">
+                          Passe die Zahlenwerte für die interaktive 3D-Säulengrafik an, die bei der Fehrmann-Referenz auf der Website angezeigt wird.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider">
+                            Säule 1: Aufrufe (z. B. + 270 %)
+                          </label>
+                          <input
+                            type="text"
+                            value={cmsData.fehrmannStats?.aufrufe || ''}
+                            onChange={(e) => updateFehrmannStatsFields({ aufrufe: e.target.value })}
+                            placeholder="+ 270 %"
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider">
+                            Säule 2: Reichweite (z. B. + 2.000 %)
+                          </label>
+                          <input
+                            type="text"
+                            value={cmsData.fehrmannStats?.reichweite || ''}
+                            onChange={(e) => updateFehrmannStatsFields({ reichweite: e.target.value })}
+                            placeholder="+ 2.000 %"
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider">
+                            Säule 3: Interaktion (z. B. + 9.000 %)
+                          </label>
+                          <input
+                            type="text"
+                            value={cmsData.fehrmannStats?.interaktion || ''}
+                            onChange={(e) => updateFehrmannStatsFields({ interaktion: e.target.value })}
+                            placeholder="+ 9.000 %"
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-zinc-100 pt-4">
+                        <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider flex items-center gap-1">
+                          <Link className="w-3.5 h-3.5 text-[#0073aa]" />
+                          <span>Direkter Instagram Reel-Link für Fehrmann Glas & Design</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={cmsData.fehrmannStats?.reelLink || ''}
+                          onChange={(e) => updateFehrmannStatsFields({ reelLink: e.target.value })}
+                          placeholder="https://www.instagram.com/reel/DaS9nyUMUEg/"
+                          className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold bg-white"
+                        />
+                        <p className="text-xs text-zinc-400 mt-1">
+                          Trage hier den Instagram Reel-Link ein. Dieser wird links neben der Säulengrafik im interaktiven Smartphone-Mockup auf der Website angezeigt.
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-zinc-50 border border-zinc-100 rounded-lg">
+                        <span className="text-[10px] font-mono text-zinc-500 leading-relaxed block">
+                          Tipp: Nach der Eingabe klicke oben rechts auf den gelben Button <strong>"Veröffentlichen"</strong>, um deine Änderungen live auf der Website zu speichern.
+                        </span>
+                      </div>
+                    </div>
+
                   </div>
                 )}
 
@@ -2500,6 +2791,65 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    <div className="bg-white border border-zinc-200 p-6 rounded-xl shadow-sm space-y-6">
+                      <h3 className="text-base font-bold text-zinc-900 border-b border-zinc-200 pb-2">Zusammenarbeit-Philosophie (Trust Block)</h3>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Passe die Vertrauenselemente und Philosophie unterhalb der Onboarding-Timeline an.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-zinc-600 font-bold mb-1 text-xs uppercase tracking-wider">Haupt-Überschrift (z.B. "Keine Schnupperangebote.")</label>
+                          <input
+                            type="text"
+                            value={cmsData.trustBlock?.title || ''}
+                            onChange={(e) => updateTrustBlockField('title', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-zinc-600 font-bold mb-1 text-xs uppercase tracking-wider">Zweite Überschrift / Subtitel (z.B. "Klare Verbindlichkeit.")</label>
+                          <input
+                            type="text"
+                            value={cmsData.trustBlock?.subtitle || ''}
+                            onChange={(e) => updateTrustBlockField('subtitle', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-zinc-600 font-bold mb-1 text-xs uppercase tracking-wider">Erster Absatz (Philosophie & Angebotserklärung)</label>
+                        <textarea
+                          rows={3}
+                          value={cmsData.trustBlock?.paragraph1 || ''}
+                          onChange={(e) => updateTrustBlockField('paragraph1', e.target.value)}
+                          className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-zinc-600 font-bold mb-1 text-xs uppercase tracking-wider">Zweiter Absatz (Realität vs. Wunderversprechen)</label>
+                        <textarea
+                          rows={3}
+                          value={cmsData.trustBlock?.paragraph2 || ''}
+                          onChange={(e) => updateTrustBlockField('paragraph2', e.target.value)}
+                          className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-zinc-600 font-bold mb-1 text-xs uppercase tracking-wider">Button Beschriftung (z.B. "Kostenloses Erstgespräch buchen")</label>
+                        <input
+                          type="text"
+                          value={cmsData.trustBlock?.buttonText || ''}
+                          onChange={(e) => updateTrustBlockField('buttonText', e.target.value)}
+                          className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3172,6 +3522,104 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                   );
                 })()}
 
+                {/* 7.8. TAB: FOOTER & RECHTLICHE INHALTE */}
+                {activeTab === 'footer' && cmsData && (() => {
+                  return (
+                    <div className="bg-white border border-zinc-200 p-6 rounded-xl shadow-sm space-y-8 max-w-4xl pb-12 font-sans text-zinc-800">
+                      <div>
+                        <h3 className="text-base font-bold text-zinc-900 border-b border-zinc-200 pb-2 flex items-center gap-2">
+                          <Layers className="w-5 h-5 text-[#0073aa]" />
+                          <span>Footer & Rechtliche Inhalte verwalten</span>
+                        </h3>
+                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                          Lade hier ein One-Pager Dokument für deine Besucher im Footer hoch und bearbeite die Inhalte für dein Impressum sowie deine Datenschutzerklärung.
+                        </p>
+                      </div>
+
+                      {/* 1. SECTION: DOCUMENT FILE UPLOAD */}
+                      <div className="bg-zinc-50 border border-zinc-200 p-5 rounded-xl space-y-4">
+                        <div>
+                          <h4 className="text-sm font-bold text-zinc-900">One-Pager Dokument hochladen</h4>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            Lade hier deinen One-Pager (z. B. als PDF, Flyer oder Bild) hoch. Er wird im Footer als Button "Leistungsübersicht als PDF" angezeigt und steht deinen Nutzern zum Herunterladen/Ansehen bereit.
+                          </p>
+                        </div>
+
+                        <DocumentUploader
+                          id="footer-onepager-pdf-uploader"
+                          currentUrl={cmsData.footer?.pdfUrl || ''}
+                          currentFilename={cmsData.footer?.pdfFilename || ''}
+                          onChange={(url, filepath) => {
+                            updateFooterField('pdfUrl', url);
+                            updateFooterField('pdfFilename', filepath);
+                          }}
+                          label="Zugehöriges Dokument (*.pdf, *.txt, *.docx, *.png, *.jpg)"
+                        />
+                      </div>
+
+                      {/* 2. SECTION: IMPRESSUM & DATENSCHUTZ TEXTS */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        {/* IMPRESSUM TEXT EDIT */}
+                        <div className="p-5 border border-zinc-200 rounded-xl space-y-3 bg-zinc-50">
+                          <h4 className="font-bold text-sm text-[#0073aa] flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            <span>Impressum Inhalte</span>
+                          </h4>
+                          <p className="text-xs text-zinc-500 leading-relaxed">
+                            Passe hier den Text für dein Impressum an. Wenn dieses Feld leer gelassen wird, wird das Standard-Impressum angezeigt.
+                          </p>
+                          <textarea
+                            value={cmsData.footer?.imprintText || ''}
+                            onChange={(e) => updateFooterField('imprintText', e.target.value)}
+                            placeholder="Gib hier dein vollständiges Impressum ein..."
+                            className="w-full h-64 p-3 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono bg-white resize-y"
+                          />
+                        </div>
+
+                        {/* DATENSCHUTZ TEXT EDIT */}
+                        <div className="p-5 border border-zinc-200 rounded-xl space-y-3 bg-zinc-50">
+                          <h4 className="font-bold text-sm text-[#0073aa] flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4" />
+                            <span>Datenschutzerklärung Inhalte</span>
+                          </h4>
+                          <p className="text-xs text-zinc-500 leading-relaxed">
+                            Passe hier den Text für deine Datenschutzerklärung an. Wenn dieses Feld leer gelassen wird, wird die Standard-Erklärung angezeigt.
+                          </p>
+                          <textarea
+                            value={cmsData.footer?.privacyText || ''}
+                            onChange={(e) => updateFooterField('privacyText', e.target.value)}
+                            placeholder="Gib hier deine vollständige Datenschutzerklärung ein..."
+                            className="w-full h-64 p-3 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono bg-white resize-y"
+                          />
+                        </div>
+
+                      </div>
+
+                      {/* LOCAL SAVE ACTION BUTTON */}
+                      <div className="pt-6 border-t border-zinc-200 flex justify-end items-center gap-3">
+                        {saveStatus === 'success' && (
+                          <span className="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+                            Änderungen erfolgreich veröffentlicht!
+                          </span>
+                        )}
+                        {saveStatus === 'error' && (
+                          <span className="text-xs text-red-600 font-bold bg-red-50 px-3 py-1.5 rounded-lg border border-red-200">
+                            Fehler beim Speichern. Bitte versuche es erneut.
+                          </span>
+                        )}
+                        <button
+                          onClick={handlePublish}
+                          disabled={saveStatus === 'saving'}
+                          className="py-2.5 px-6 bg-[#0073aa] hover:bg-[#005177] disabled:bg-zinc-300 text-white text-xs font-bold uppercase rounded-lg shadow-sm cursor-pointer transition-transform duration-100 active:scale-95 flex items-center gap-1.5"
+                        >
+                          <span>{saveStatus === 'saving' ? 'Wird gespeichert...' : 'Änderungen speichern & veröffentlichen'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* 8. TAB: SECURITY & ADMINISTRATIVE CREDENTIALS */}
                 {activeTab === 'credentials' && (
                   <div className="bg-white border border-zinc-200 p-6 rounded-xl shadow-sm space-y-6 max-w-2xl pb-12 font-sans text-zinc-800">
@@ -3256,6 +3704,23 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
 
     </div>
   );
+}
+
+// Helper to get service features
+function getServiceFeatures(service: Service): string[] {
+  if (service.features && service.features.length > 0) {
+    return service.features;
+  }
+  switch (service.id) {
+    case 'content-creation':
+      return ['Konzeptstarke Reels', 'Wertvolle Carousels', 'Interaktive Stories', 'Captions on Point'];
+    case 'strategy':
+      return ['Zielgruppen-Psychologie', 'Klare Positionierung', 'Maßgeschneiderter Fahrplan'];
+    case 'management':
+      return ['Posting & Redaktionsplan', 'Community Management', 'Performance-Optimierung'];
+    default:
+      return [];
+  }
 }
 
 // FORM ASSISTANTS TO PREVENT OVERFLOW & ENHANCE READING

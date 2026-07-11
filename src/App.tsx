@@ -6,7 +6,7 @@ import { PhoneCall, Calendar, ArrowUpRight, MessageSquare, Menu, X, ArrowDown, K
 import CookieBanner from './components/CookieBanner';
 import CalendlyModal from './components/CalendlyModal';
 import ServicesList from './components/ServicesList';
-import ToolGrid from './components/ToolGrid';
+import AboutSection from './components/AboutSection';
 import References from './components/References';
 import ProcessTimeline from './components/ProcessTimeline';
 import ContactForm from './components/ContactForm';
@@ -177,7 +177,7 @@ export default function App() {
               {pageData?.hero?.logoText || 'FLORIAN KUSCHE'}
             </span>
             <span className="font-mono text-[9px] tracking-[0.22em] text-[#d6c3a3] uppercase block mt-1 leading-none font-semibold">
-              {pageData?.hero?.logoSubtext || 'INSTAGRAM MARKETING & CONTENT'}
+              {pageData?.hero?.logoSubtext || 'INSTAGRAM MANAGEMENT & CONTENT'}
             </span>
           </button>
 
@@ -188,12 +188,6 @@ export default function App() {
               className="text-[#cce9ff]/80 hover:text-white transition-colors cursor-pointer"
             >
               Leistungen
-            </button>
-            <button
-              onClick={() => scrollToSection('tools')}
-              className="text-[#cce9ff]/80 hover:text-white transition-colors cursor-pointer"
-            >
-              Tools
             </button>
             <button
               onClick={() => scrollToSection('referenzen')}
@@ -244,9 +238,6 @@ export default function App() {
         >
           <button onClick={() => scrollToSection('leistungen')} className="text-left font-bold border-b border-brand-dark-card/20 pb-2">
             Leistungen
-          </button>
-          <button onClick={() => scrollToSection('tools')} className="text-left font-bold border-b border-brand-dark-card/20 pb-2">
-            Tools
           </button>
           <button onClick={() => scrollToSection('referenzen')} className="text-left font-bold border-b border-brand-dark-card/20 pb-2">
             Referenzen
@@ -315,7 +306,7 @@ export default function App() {
             )}
 
             <span className="inline-block py-1 px-3.5 bg-brand-dark-card text-[#d6c3a3] font-mono text-xs font-bold tracking-[0.2em] rounded uppercase">
-              {pageData?.hero?.eyebrow || 'Instagram Marketing & Content'}
+              {pageData?.hero?.eyebrow || 'Instagram Management & Content'}
             </span>
 
             {/* MAIN HEADLINE */}
@@ -364,6 +355,12 @@ export default function App() {
         </div>
       </section>
 
+      {/* 3. Block 1.5: Wer steckt dahinter */}
+      <AboutSection 
+        about={pageData?.about} 
+        defaultPortraitUrl={pageData?.betweenSectionImage?.imageUrl || pageData?.contactImage?.imageUrl}
+      />
+
       {/* 3. Block 2: Leistungen (Services) */}
       <ServicesList 
         onOpenBooking={() => setIsBookingOpen(true)} 
@@ -371,14 +368,15 @@ export default function App() {
         sectionConfig={pageData?.servicesSection} 
       />
 
-      {/* 4. Block 3: Tools */}
-      <ToolGrid tools={pageData?.tools} />
-
       {/* 5. Block 4: Referenzen (Kunden & Testimonial) */}
-      <References references={pageData?.references} />
+      <References references={pageData?.references} fehrmannStats={pageData?.fehrmannStats} />
 
       {/* 6. Block 5: Zusammenarbeit & Onboarding */}
-      <ProcessTimeline onOpenBooking={() => setIsBookingOpen(true)} processes={pageData?.processes} />
+      <ProcessTimeline 
+        onOpenBooking={() => setIsBookingOpen(true)} 
+        processes={pageData?.processes} 
+        trustBlock={pageData?.trustBlock}
+      />
 
       {/* 7. Block 6: Kontaktformular */}
       <ContactForm footer={pageData?.footer} contactImage={pageData?.contactImage} />

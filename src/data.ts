@@ -7,36 +7,42 @@ export const SERVICES: Service[] = [
     description: 'Reels, Carousels und Stories, die echtes Vertrauen aufbauen, deine Wunschkunden fesseln und kaufbereite Anfragen generieren.',
     label: 'CREATE',
     isPrimary: true,
+    features: ['Konzeptstarke Reels', 'Wertvolle Carousels', 'Interaktive Stories', 'Captions on Point'],
   },
   {
     id: 'strategy',
     title: 'Social-Media-Strategie',
     description: 'Klare Positionierung, tiefes Zielgruppenverständnis und ein maßgeschneiderter, strukturierter Content-Fahrplan für dein Business.',
     label: 'STRATEGY',
+    features: ['Zielgruppen-Psychologie', 'Klare Positionierung', 'Maßgeschneiderter Fahrplan'],
   },
   {
     id: 'management',
     title: 'Account-Betreuung',
     description: 'Umfassende und nahtlose Veröffentlichung aller Formate komplett aus einer Hand, damit du dich zurücklehnen kannst.',
     label: 'MANAGE',
+    features: ['Stressfreie Veröffentlichung', 'Konstante Präsenz', 'Zeitnahes Scheduling'],
   },
   {
     id: 'community',
     title: 'Community Management',
     description: 'Aktive Interaktion mit deinen Followern. Kommentare und DMs werden zeitnah und hochprofessionell in deinem Ton beantwortet.',
     label: 'ENGAGE',
+    features: ['Aktive Lead-Interaktion', 'Schnelle DM-Antworten', 'Markenkonformer Ton'],
   },
   {
     id: 'analytics',
     title: 'Performance & Optimierung',
     description: 'Regelmäßige datenbasierte Auswertungen, um die Formate kontinuierlich zu optimieren und die Reichweite nachhaltig zu steigern.',
     label: 'ANALYZE',
+    features: ['Datenbasierte Berichte', 'Conversion-Optimierung', 'Nachhaltiges Wachstum'],
   },
   {
     id: 'storyboard',
     title: 'Storyboard & Konzeption',
     description: 'Jedes Reel startet mit einem psychologischen Hook, klarem Plan, ausgearbeitetem Skript und einer fesselnden Storyline.',
     label: 'PLAN',
+    features: ['Psychologische Hooks', 'Ausgearbeitete Skripte', 'Fesselndes Storytelling'],
   },
 ];
 
@@ -68,6 +74,7 @@ export const REFERENCES: ClientReference[] = [
     name: 'Fehrmann Glas & Design',
     status: 'freigegeben',
     format: 'Reels + Carousels (Scrollender Marquee)',
+    reelLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/',
     testimonial: {
       text: 'Ich habe wenig Zeit für Social Media. Und weniger Ahnung. Herr Kusche nimmt mir alles ab. Nach vier Monaten sehe ich: neue Reichweite, neue Follower, wir werden gesehen und darüber gesprochen. Hochprofessionell, mit klarem Plan, wann, wie und wo. Der Satz für sein Honorar stimmt 100%. Wärmste Empfehlung.',
       author: 'Claudia Fehrmann',
@@ -76,8 +83,14 @@ export const REFERENCES: ClientReference[] = [
   },
   {
     name: 'Rodizio',
-    status: 'ausstehend',
+    status: 'freigegeben',
     format: 'Ein einzelnes Reel als eingebettetes Video',
+    reelLink: 'https://www.instagram.com/reel/DZkp0a0AYJ_/',
+    testimonial: {
+      text: 'Frischer Grill-Spieß direkt an deinen Tisch! 🔥🥩 Unfassbare Geschmacksexplosion bei uns. Kommt vorbei! #rodizio #barbecue #foodie',
+      author: 'Rodizio',
+      role: 'Restaurant',
+    }
   },
   {
     name: 'Deutsches Eck, Mallorca',

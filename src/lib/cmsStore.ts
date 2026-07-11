@@ -3,11 +3,78 @@ import { db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaE
 import { LandingPageData } from '../types';
 import { SERVICES, TOOLS, REFERENCES, PROCESS_STEPS } from '../data';
 
+const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string = 'Timeout'): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+  ]);
+};
+
+async function reconstructChunkedFields(pageData: LandingPageData): Promise<LandingPageData> {
+  // 1. OnePager chunk loading
+  if (pageData.onePager?.documentUrl === 'chunked://onepager') {
+    try {
+      const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'onepager')), 5000, 'offline');
+      if (metaSnap.exists()) {
+        const { totalChunks } = metaSnap.data();
+        if (typeof totalChunks === 'number' && totalChunks > 0) {
+          const chunkPromises = [];
+          for (let i = 0; i < totalChunks; i++) {
+            chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${i}`)), 5000, 'offline'));
+          }
+          const chunkSnaps = await Promise.all(chunkPromises);
+          let fullBase64 = '';
+          for (const snap of chunkSnaps) {
+            if (snap.exists()) {
+              fullBase64 += snap.data().chunk || '';
+            }
+          }
+          if (fullBase64) {
+            pageData.onePager.documentUrl = fullBase64;
+          }
+        }
+      }
+    } catch (err) {
+      logSafeFirebaseError('Error reassembling chunked onepager PDF', err);
+    }
+  }
+
+  // 2. Footer pdf chunk loading
+  if (pageData.footer?.pdfUrl === 'chunked://footerpdf') {
+    try {
+      const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'footerpdf')), 5000, 'offline');
+      if (metaSnap.exists()) {
+        const { totalChunks } = metaSnap.data();
+        if (typeof totalChunks === 'number' && totalChunks > 0) {
+          const chunkPromises = [];
+          for (let i = 0; i < totalChunks; i++) {
+            chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `footerpdf_chunk_${i}`)), 5000, 'offline'));
+          }
+          const chunkSnaps = await Promise.all(chunkPromises);
+          let fullBase64 = '';
+          for (const snap of chunkSnaps) {
+            if (snap.exists()) {
+              fullBase64 += snap.data().chunk || '';
+            }
+          }
+          if (fullBase64) {
+            pageData.footer.pdfUrl = fullBase64;
+          }
+        }
+      }
+    } catch (err) {
+      logSafeFirebaseError('Error reassembling chunked footer PDF', err);
+    }
+  }
+
+  return pageData;
+}
+
 export const DEFAULT_PAGE_DATA: LandingPageData = {
   hero: {
     logoText: 'FLORIAN KUSCHE',
-    logoSubtext: 'INSTAGRAM MARKETING & CONTENT',
-    eyebrow: 'Instagram Marketing & Content',
+    logoSubtext: 'INSTAGRAM MANAGEMENT & CONTENT',
+    eyebrow: 'Instagram Management & Content',
     headline: 'Mehr Anfragen. \nMehr Sichtbarkeit. \nKein Stress.',
     subtitle: 'Ich übernehme deinen Instagram-Auftritt komplett, damit du dich auf dein Business konzentrieren kannst.',
     primaryCta: 'Kostenloses Erstgespräch',
@@ -22,7 +89,11 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     phone: '+49 151 28897623',
     email: 'florian@floriankusche.de',
     instagram: '@floriankusche.social',
-    location: 'Hannover, Deutschland'
+    location: 'Hannover, Deutschland',
+    pdfUrl: '',
+    pdfFilename: '',
+    imprintText: '',
+    privacyText: ''
   },
   betweenSectionImage: {
     imageUrl: '',
@@ -76,6 +147,27 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     brandDarkerBrightness: 0,
     brandDarkCard: '#014e7a',
     brandDarkCardBrightness: 0
+  },
+  about: {
+    enabled: true,
+    eyebrow: 'Seit 2004 im Vertrieb, seit 2017 selbstständig.',
+    title: 'Wer steckt dahinter',
+    text: 'Ich kenne beide Seiten: was Kunden wirklich überzeugt, und wie man das sichtbar macht. Deshalb arbeite ich ausschließlich mit Instagram, dafür richtig. Mein Tool-Stack: Canva Business, CapCut, Google Drive und Trello für die Organisation, dazu KI-gestützte Tools für Recherche und Konzeption.',
+    imageEnabled: true,
+    imageUrl: ''
+  },
+  trustBlock: {
+    title: 'Keine Schnupperangebote.',
+    subtitle: 'Klare Verbindlichkeit.',
+    paragraph1: 'Ich glaube an nachhaltiges Wachstum und erstklassigen Service. Social Media funktioniert nicht über Nacht. Der beste und fairste Einstieg ist das kostenlose Erstgespräch, bei dem wir deine langfristigen Potenziale ermitteln.',
+    paragraph2: 'Ich verkaufe keine Wunder. Ich arbeite mit dem, was an deinem Business, deinem Team oder deinem Handwerk bereits überzeugt, und mache genau das sichtbar. Keine übertriebenen Reichweiten-Versprechen, sondern realistische, nachvollziehbare Ergebnisse.',
+    buttonText: 'Kostenloses Erstgespräch buchen'
+  },
+  fehrmannStats: {
+    aufrufe: '+ 270 %',
+    reichweite: '+ 2.000 %',
+    interaktion: '+ 9.000 %',
+    reelLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/'
   },
   calendly: {
     calendlyUrl: 'https://calendly.com/floriankusche',
@@ -160,39 +252,30 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
           : DEFAULT_PAGE_DATA.colors,
         calendly: dbData.calendly
           ? { ...DEFAULT_PAGE_DATA.calendly, ...dbData.calendly }
-          : DEFAULT_PAGE_DATA.calendly
+          : DEFAULT_PAGE_DATA.calendly,
+        about: dbData.about
+          ? { ...DEFAULT_PAGE_DATA.about, ...dbData.about }
+          : DEFAULT_PAGE_DATA.about,
+        trustBlock: dbData.trustBlock
+          ? { ...DEFAULT_PAGE_DATA.trustBlock, ...dbData.trustBlock }
+          : DEFAULT_PAGE_DATA.trustBlock,
+        fehrmannStats: dbData.fehrmannStats
+          ? { ...DEFAULT_PAGE_DATA.fehrmannStats, ...dbData.fehrmannStats }
+          : DEFAULT_PAGE_DATA.fehrmannStats
       };
 
-      // Handle reconstructing chunked files
-      if (pageData.onePager?.documentUrl === 'chunked://onepager') {
-        try {
-          const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'onepager')), 5000, 'offline');
-          if (metaSnap.exists()) {
-            const { totalChunks } = metaSnap.data();
-            if (typeof totalChunks === 'number' && totalChunks > 0) {
-              const chunkPromises = [];
-              for (let i = 0; i < totalChunks; i++) {
-                chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${i}`)), 5000, 'offline'));
-              }
-              const chunkSnaps = await Promise.all(chunkPromises);
-              let fullBase64 = '';
-              for (const snap of chunkSnaps) {
-                if (snap.exists()) {
-                  fullBase64 += snap.data().chunk || '';
-                }
-              }
-              if (fullBase64) {
-                pageData.onePager.documentUrl = fullBase64;
-              }
-            }
-          }
-        } catch (err) {
-          logSafeFirebaseError('Error reassembling chunked PDF', err);
-        }
+      // Reconstruct chunked fields dynamically
+      const pageDataWithChunks = await reconstructChunkedFields(pageData);
+      setLocalCache(pageDataWithChunks);
+      return pageDataWithChunks;
+    } else {
+      // Document doesn't exist yet, but we are online!
+      // Check cached, otherwise return defaults without setting isFallback: true
+      const cached = getLocalCache();
+      if (cached) {
+        return { ...cached, isFallback: false };
       }
-
-      setLocalCache(pageData);
-      return pageData;
+      return { ...DEFAULT_PAGE_DATA, isFallback: false };
     }
   } catch (error: any) {
     if (error?.code === 'permission-denied' || error?.message?.includes('permission')) {
@@ -205,7 +288,7 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
   const cached = getLocalCache();
   if (cached) {
     console.log('Successfully recovered landing page data from local storage cache.');
-    return cached;
+    return { ...cached, isFallback: true };
   }
   return { ...DEFAULT_PAGE_DATA, isFallback: true };
 }
@@ -213,13 +296,6 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
 /**
  * Saves/Publishes the landing page configuration to Firestore and saves it to local cache.
  */
-
-const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string = 'Timeout'): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
-  ]);
-};
 
 export async function saveLandingPageData(data: LandingPageData): Promise<void> {
   const dataCopy = JSON.parse(JSON.stringify(data)) as LandingPageData;
@@ -231,31 +307,59 @@ export async function saveLandingPageData(data: LandingPageData): Promise<void> 
   const configDocRef = doc(db, 'landing_pages', 'main');
   try {
 
-    // Check if the file is too large and needs chunking (> 800 KB characters)
+    // 1. Check if the onepager is too large and needs chunking (> 50 KB characters)
     const docUrl = dataCopy.onePager?.documentUrl || '';
-    if (docUrl.startsWith('data:') && docUrl.length > 800000) {
-      const chunkSize = 700000;
+    if (docUrl.startsWith('data:') && docUrl.length > 50000) {
+      const chunkSize = 40000;
       const chunks: string[] = [];
       for (let i = 0; i < docUrl.length; i += chunkSize) {
         chunks.push(docUrl.substring(i, i + chunkSize));
       }
 
-      // 1. Write chunks metadata
+      // Write chunks metadata
       await withTimeout(setDoc(doc(db, 'landing_page_chunks', 'onepager'), {
         totalChunks: chunks.length,
         filename: dataCopy.onePager?.documentFilename || 'document',
         updatedAt: new Date().toISOString()
       }), 5000, 'offline');
 
-      // 2. Write individual chunk documents
+      // Write individual chunk documents
       const chunkWrites = chunks.map((chunk, index) => 
         withTimeout(setDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${index}`), { chunk }), 5000, 'offline')
       );
       await Promise.all(chunkWrites);
 
-      // 3. Update main reference to point to chunks
+      // Update main reference to point to chunks
       if (dataCopy.onePager) {
         dataCopy.onePager.documentUrl = 'chunked://onepager';
+      }
+    }
+
+    // 2. Check if the footer PDF is too large and needs chunking (> 50 KB characters)
+    const footerPdfUrl = dataCopy.footer?.pdfUrl || '';
+    if (footerPdfUrl.startsWith('data:') && footerPdfUrl.length > 50000) {
+      const chunkSize = 40000;
+      const chunks: string[] = [];
+      for (let i = 0; i < footerPdfUrl.length; i += chunkSize) {
+        chunks.push(footerPdfUrl.substring(i, i + chunkSize));
+      }
+
+      // Write chunks metadata
+      await withTimeout(setDoc(doc(db, 'landing_page_chunks', 'footerpdf'), {
+        totalChunks: chunks.length,
+        filename: dataCopy.footer?.pdfFilename || 'document',
+        updatedAt: new Date().toISOString()
+      }), 5000, 'offline');
+
+      // Write individual chunk documents
+      const chunkWrites = chunks.map((chunk, index) => 
+        withTimeout(setDoc(doc(db, 'landing_page_chunks', `footerpdf_chunk_${index}`), { chunk }), 5000, 'offline')
+      );
+      await Promise.all(chunkWrites);
+
+      // Update main reference to point to chunks
+      if (dataCopy.footer) {
+        dataCopy.footer.pdfUrl = 'chunked://footerpdf';
       }
     }
 
@@ -296,20 +400,30 @@ export function subscribeLandingPageData(callback: (data: LandingPageData) => vo
           : DEFAULT_PAGE_DATA.colors,
         calendly: dbData.calendly
           ? { ...DEFAULT_PAGE_DATA.calendly, ...dbData.calendly }
-          : DEFAULT_PAGE_DATA.calendly
+          : DEFAULT_PAGE_DATA.calendly,
+        about: dbData.about
+          ? { ...DEFAULT_PAGE_DATA.about, ...dbData.about }
+          : DEFAULT_PAGE_DATA.about,
+        trustBlock: dbData.trustBlock
+          ? { ...DEFAULT_PAGE_DATA.trustBlock, ...dbData.trustBlock }
+          : DEFAULT_PAGE_DATA.trustBlock,
+        fehrmannStats: dbData.fehrmannStats
+          ? { ...DEFAULT_PAGE_DATA.fehrmannStats, ...dbData.fehrmannStats }
+          : DEFAULT_PAGE_DATA.fehrmannStats
       };
 
-      setLocalCache(pageData);
-      callback(pageData);
+      const pageDataWithChunks = await reconstructChunkedFields(pageData);
+      setLocalCache(pageDataWithChunks);
+      callback(pageDataWithChunks);
     } else {
        const cached = getLocalCache();
-       if (cached) callback(cached);
-       else callback({ ...DEFAULT_PAGE_DATA, isFallback: true });
+       if (cached) callback({ ...cached, isFallback: false });
+       else callback({ ...DEFAULT_PAGE_DATA, isFallback: false });
     }
   }, (err) => {
     logSafeFirebaseError('Error listening to landing page data', err);
     const cached = getLocalCache();
-    if (cached) callback(cached);
+    if (cached) callback({ ...cached, isFallback: true });
     else callback({ ...DEFAULT_PAGE_DATA, isFallback: true });
     
     // Only propagate non-quota errors to avoid console spam and false alarms

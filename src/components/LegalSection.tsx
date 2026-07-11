@@ -15,6 +15,55 @@ export default function LegalSection({ footer }: { footer?: FooterConfig }) {
     setActiveDrawer(prev => (prev === drawer ? null : drawer));
   };
 
+  const handleDownloadPdf = () => {
+    if (!footer?.pdfUrl) return;
+    try {
+      if (footer.pdfUrl.startsWith('data:')) {
+        const parts = footer.pdfUrl.split(',');
+        const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        
+        let filename = 'Leistungsübersicht.pdf';
+        if (footer.pdfFilename) {
+          const ext = footer.pdfFilename.split('.').pop() || 'pdf';
+          filename = `Leistungsübersicht.${ext}`;
+        }
+        link.download = filename;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        const link = document.createElement('a');
+        link.href = footer.pdfUrl;
+        
+        let filename = 'Leistungsübersicht.pdf';
+        if (footer.pdfFilename) {
+          const ext = footer.pdfFilename.split('.').pop() || 'pdf';
+          filename = `Leistungsübersicht.${ext}`;
+        }
+        link.download = filename;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+    }
+  };
+
   return (
     <footer className="bg-brand-darker border-t border-[#014e7a]/30 text-[#cce9ff]/80 py-12 px-4 sm:px-6 relative z-20">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-[#014e7a]/20">
@@ -25,12 +74,23 @@ export default function LegalSection({ footer }: { footer?: FooterConfig }) {
             FLORIAN KUSCHE
           </span>
           <span className="font-mono text-[9px] tracking-[0.2em] text-[#d6c3a3] uppercase block mt-1">
-            Instagram Marketing & Content
+            Instagram Management & Content
           </span>
         </div>
 
         {/* Right Side: Interactive Legal Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-mono tracking-widest uppercase">
+          {footer?.pdfUrl && (
+            <button
+              onClick={handleDownloadPdf}
+              className="py-2 px-4 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer bg-brand-dark border border-accent/40 hover:border-accent text-accent hover:text-white font-bold"
+              id="btn-pdf-download"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Leistungsübersicht als PDF</span>
+            </button>
+          )}
+
           <button
             onClick={() => toggleDrawer('impressum')}
             className={`py-2 px-4 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
@@ -73,79 +133,91 @@ export default function LegalSection({ footer }: { footer?: FooterConfig }) {
             id="legal-slide-panel"
           >
             {activeDrawer === 'impressum' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm" id="legal-content-impressum">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-[#014e7a]/20">
-                    <Info className="w-4 h-4 text-accent" />
-                    <h3 className="font-display font-bold uppercase tracking-wider text-white">Angaben gemäß § 5 TMG</h3>
-                  </div>
-                  <div className="space-y-1 text-[#cce9ff]/90">
-                    <p className="font-bold text-white">Florian Kusche</p>
-                    <p>Instagram Marketing & Content Creation</p>
-                    <p>{currentLocation}</p>
-                  </div>
+              footer?.imprintText ? (
+                <div className="text-sm text-[#cce9ff]/90 whitespace-pre-wrap leading-relaxed space-y-2" id="legal-content-impressum-custom">
+                  {footer.imprintText}
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm" id="legal-content-impressum">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-[#014e7a]/20">
+                      <Info className="w-4 h-4 text-accent" />
+                      <h3 className="font-display font-bold uppercase tracking-wider text-white">Angaben gemäß § 5 TMG</h3>
+                    </div>
+                    <div className="space-y-1 text-[#cce9ff]/90">
+                      <p className="font-bold text-white">Florian Kusche</p>
+                      <p>Instagram Management & Content Creation</p>
+                      <p>{currentLocation}</p>
+                    </div>
+                  </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-[#014e7a]/20">
-                    <Info className="w-4 h-4 text-accent" />
-                    <h3 className="font-display font-bold uppercase tracking-wider text-white">Kontakt & Support</h3>
-                  </div>
-                  <div className="space-y-1.5 text-[#cce9ff]/90">
-                    <p>
-                      <span className="font-mono text-xs text-[#d6c3a3]">E-Mail:</span>{' '}
-                      <a href={`mailto:${currentEmail}`} className="underline text-accent">{currentEmail}</a>
-                    </p>
-                    <p>
-                      <span className="font-mono text-xs text-[#d6c3a3]">Telefon / WhatsApp:</span>{' '}
-                      <a href={`tel:${currentPhone}`} className="underline text-[#cce9ff]">{currentPhone}</a>
-                    </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-[#014e7a]/20">
+                      <Info className="w-4 h-4 text-accent" />
+                      <h3 className="font-display font-bold uppercase tracking-wider text-white">Kontakt & Support</h3>
+                    </div>
+                    <div className="space-y-1.5 text-[#cce9ff]/90">
+                      <p>
+                        <span className="font-mono text-xs text-[#d6c3a3]">E-Mail:</span>{' '}
+                        <a href={`mailto:${currentEmail}`} className="underline text-accent">{currentEmail}</a>
+                      </p>
+                      <p>
+                        <span className="font-mono text-xs text-[#d6c3a3]">Telefon / WhatsApp:</span>{' '}
+                        <a href={`tel:${currentPhone}`} className="underline text-[#cce9ff]">{currentPhone}</a>
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )
             )}
 
             {activeDrawer === 'datenschutz' && (
-              <div className="space-y-6 text-sm" id="legal-content-datenschutz">
-                <div className="flex items-center gap-2 pb-2 border-b border-[#014e7a]/20">
-                  <ShieldCheck className="w-4 h-4 text-accent" />
-                  <h3 className="font-display font-bold uppercase tracking-wider text-white">Datenschutzerklärung (Zusammenfassung)</h3>
+              footer?.privacyText ? (
+                <div className="text-sm text-[#cce9ff]/90 whitespace-pre-wrap leading-relaxed space-y-2" id="legal-content-datenschutz-custom">
+                  {footer.privacyText}
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs leading-relaxed text-[#cce9ff]/85">
-                  <div className="space-y-2 bg-brand-dark border border-[#014e7a]/20 p-4 rounded-xl">
-                    <h4 className="font-bold text-white font-display uppercase tracking-wider text-xs">1. Webhosting</h4>
-                    <p>
-                      Unsere Landing Page wird bei der <strong className="text-white">Strato AG</strong> gehostet. Strato erfasst serverseitige Logfiles (IP-Adresse, Datum, Uhrzeit), um den sicheren Betrieb der Systeme zu garantieren.
-                    </p>
-                    <a
-                      href="https://www.strato.de/datenschutz"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent underline inline-flex items-center gap-1 hover:text-[#ebd500] font-semibold mt-1"
-                    >
-                      Strato Datenschutz <ExternalLink className="w-3 h-3" />
-                    </a>
+              ) : (
+                <div className="space-y-6 text-sm" id="legal-content-datenschutz">
+                  <div className="flex items-center gap-2 pb-2 border-b border-[#014e7a]/20">
+                    <ShieldCheck className="w-4 h-4 text-accent" />
+                    <h3 className="font-display font-bold uppercase tracking-wider text-white">Datenschutzerklärung (Zusammenfassung)</h3>
                   </div>
 
-                  <div className="space-y-2 bg-brand-dark border border-[#014e7a]/20 p-4 rounded-xl">
-                    <h4 className="font-bold text-white font-display uppercase tracking-wider text-xs">2. Cookies & Tracker</h4>
-                    <p>
-                      Wir setzen technisch notwendige Session-Cookies ein, die für das reibungslose Funktionieren der Website sorgen.
-                    </p>
-                    <p className="mt-1">
-                      Drittanbieter-Erweiterungen (Instagram-Medien, Calendly Scheduling) laden erst nach deiner ausdrücklichen Einwilligung im Cookie-Banner.
-                    </p>
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs leading-relaxed text-[#cce9ff]/85">
+                    <div className="space-y-2 bg-brand-dark border border-[#014e7a]/20 p-4 rounded-xl">
+                      <h4 className="font-bold text-white font-display uppercase tracking-wider text-xs">1. Webhosting</h4>
+                      <p>
+                        Unsere Landing Page wird bei der <strong className="text-white">Strato AG</strong> gehostet. Strato erfasst serverseitige Logfiles (IP-Adresse, Datum, Uhrzeit), um den sicheren Betrieb der Systeme zu garantieren.
+                      </p>
+                      <a
+                        href="https://www.strato.de/datenschutz"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent underline inline-flex items-center gap-1 hover:text-[#ebd500] font-semibold mt-1"
+                      >
+                        Strato Datenschutz <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
 
-                  <div className="space-y-2 bg-brand-dark border border-[#014e7a]/20 p-4 rounded-xl">
-                    <h4 className="font-bold text-white font-display uppercase tracking-wider text-xs">3. Betroffenenrechte</h4>
-                    <p>
-                      Du hast jederzeit das Recht auf unentgeltliche Auskunft über deine gespeicherten personenbezogenen Daten, deren Herkunft und Empfänger sowie das Recht auf Berichtigung, Sperrung oder Löschung dieser Daten.
-                    </p>
+                    <div className="space-y-2 bg-brand-dark border border-[#014e7a]/20 p-4 rounded-xl">
+                      <h4 className="font-bold text-white font-display uppercase tracking-wider text-xs">2. Cookies & Tracker</h4>
+                      <p>
+                        Wir setzen technisch notwendige Session-Cookies ein, die für das reibungslose Funktionieren der Website sorgen.
+                      </p>
+                      <p className="mt-1">
+                        Drittanbieter-Erweiterungen (Instagram-Medien, Calendly Scheduling) laden erst nach deiner ausdrücklichen Einwilligung im Cookie-Banner.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 bg-brand-dark border border-[#014e7a]/20 p-4 rounded-xl">
+                      <h4 className="font-bold text-white font-display uppercase tracking-wider text-xs">3. Betroffenenrechte</h4>
+                      <p>
+                        Du hast jederzeit das Recht auf unentgeltliche Auskunft über deine gespeicherten personenbezogenen Daten, deren Herkunft und Empfänger sowie das Recht auf Berichtigung, Sperrung oder Löschung dieser Daten.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )
             )}
           </motion.div>
         )}

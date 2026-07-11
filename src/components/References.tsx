@@ -6,9 +6,10 @@ import { REFERENCES } from '../data';
 function getInstagramEmbedUrl(url: string | undefined): string | null {
   if (!url) return null;
   const trimmed = url.trim();
-  const match = trimmed.match(/(?:instagram\.com)\/(?:reel|p)\/([A-Za-z0-9_-]+)/i);
+  if (trimmed === "") return null;
+  const match = trimmed.match(/(?:instagram\.com|instagr\.am)\/(?:reel|reels|p|tv)\/([A-Za-z0-9_-]+)/i);
   if (match && match[1]) {
-    return `https://www.instagram.com/reel/${match[1]}/embed`;
+    return `https://www.instagram.com/reel/${match[1]}/embed/`;
   }
   return null;
 }
@@ -23,11 +24,28 @@ const FEHRMANN_POSTS = [
 
 import { ClientReference } from '../types';
 
-export default function References({ references }: { references?: ClientReference[] }) {
+export default function References({ 
+  references, 
+  fehrmannStats 
+}: { 
+  references?: ClientReference[]; 
+  fehrmannStats?: { 
+    aufrufe: string; 
+    reichweite: string; 
+    interaktion: string; 
+    reelLink?: string;
+  };
+}) {
   const [isPlayingReel, setIsPlayingReel] = useState(false);
   const [rodizioLikes, setRodizioLikes] = useState(1342);
   const [isLiked, setIsLiked] = useState(false);
   const [progress, setProgress] = useState(30);
+
+  const [isPlayingFehrmannReel, setIsPlayingFehrmannReel] = useState(false);
+  const [fehrmannLikes, setFehrmannLikes] = useState(842);
+  const [isFehrmannLiked, setIsFehrmannLiked] = useState(false);
+  const [fehrmannProgress, setFehrmannProgress] = useState(15);
+
   const [activeModalReel, setActiveModalReel] = useState<string | null>(null);
   const [activeModalTitle, setActiveModalTitle] = useState<string>('');
 
@@ -54,6 +72,20 @@ export default function References({ references }: { references?: ClientReferenc
     return () => clearInterval(interval);
   }, [isPlayingReel]);
 
+  // Simulate Fehrmann reel progress bar ticking
+  useEffect(() => {
+    let interval: any;
+    if (isPlayingFehrmannReel) {
+      interval = setInterval(() => {
+        setFehrmannProgress(prev => {
+          if (prev >= 100) return 0;
+          return prev + 1.5;
+        });
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [isPlayingFehrmannReel]);
+
   const handleLikeReel = () => {
     if (isLiked) {
       setRodizioLikes(prev => prev - 1);
@@ -61,6 +93,16 @@ export default function References({ references }: { references?: ClientReferenc
     } else {
       setRodizioLikes(prev => prev + 1);
       setIsLiked(true);
+    }
+  };
+
+  const handleLikeFehrmannReel = () => {
+    if (isFehrmannLiked) {
+      setFehrmannLikes(prev => prev - 1);
+      setIsFehrmannLiked(false);
+    } else {
+      setFehrmannLikes(prev => prev + 1);
+      setIsFehrmannLiked(true);
     }
   };
 
@@ -139,10 +181,10 @@ export default function References({ references }: { references?: ClientReferenc
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {refFehrmann.reelLink && (
+                    {(refFehrmann.reelLink || fehrmannStats?.reelLink) && (
                       <button 
                         onClick={() => {
-                          setActiveModalReel(refFehrmann.reelLink || null);
+                          setActiveModalReel(refFehrmann.reelLink || fehrmannStats?.reelLink || null);
                           setActiveModalTitle(refFehrmann.name);
                         }}
                         className="flex items-center gap-1 text-[11px] text-black bg-[#ffcc00] hover:bg-[#e0b400] py-1.5 px-3 rounded-lg font-bold transition-all hover:scale-105 cursor-pointer"
@@ -160,6 +202,334 @@ export default function References({ references }: { references?: ClientReferenc
                 </div>
               </div>
             </motion.div>
+
+            {/* Fehrmann Stats & Reel Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mt-12">
+              
+              {/* Left Side: Fehrmann Simulated Smartphone Video Post */}
+              <div className="space-y-4">
+                <div className="space-y-2 text-center lg:text-left">
+                  <span className="font-mono text-[10px] text-accent tracking-[0.2em] uppercase block">
+                    Vorschau: {refFehrmann?.name || 'Fehrmann Glas & Design'}
+                  </span>
+                  <h3 className="font-display text-xl font-bold text-white uppercase tracking-wider">
+                    HIGHLIGHT-REEL
+                  </h3>
+                  <p className="text-xs text-[#cce9ff]/75 leading-relaxed max-w-md mx-auto lg:mx-0">
+                    Dieses Reel demonstriert die faszinierende Ästhetik von handgefertigtem Glas und modernem Design. Klicke auf Play, um das Video zu starten, oder teste das Like-System!
+                  </p>
+                </div>
+
+                {/* MOCK SMARTPHONE */}
+                <div className="flex justify-center">
+                  <div className="w-[310px] h-[550px] rounded-[40px] border-2 border-[#014e7a]/40 bg-black shadow-[0_25px_50px_-12px_rgba(0,0,0,0.85)] relative overflow-hidden select-none">
+                    
+                    {/* HIGH-FIDELITY SMARTPHONE STATUS BAR */}
+                    <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/70 to-transparent flex items-center justify-between px-5 text-[10px] font-sans font-semibold text-zinc-300 z-30 select-none">
+                      <span className="tracking-tight">12:30</span>
+                      
+                      {/* Dynamic Island Capsule */}
+                      <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-18 h-3.5 bg-black rounded-full border border-zinc-900/30 flex items-center justify-center gap-1 z-35">
+                        <div className="w-1 h-1 rounded-full bg-[#0a3147]"></div>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 animate-pulse"></div>
+                      </div>
+                      
+                      {/* Status Icons */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] text-[#ffcc00] font-mono tracking-tighter">5G</span>
+                        <div className="flex items-end gap-[1px] h-2">
+                          <span className="w-[1.5px] h-[3px] bg-zinc-300 rounded-[0.5px]"></span>
+                          <span className="w-[1.5px] h-[5px] bg-zinc-300 rounded-[0.5px]"></span>
+                          <span className="w-[1.5px] h-[7px] bg-zinc-300 rounded-[0.5px]"></span>
+                        </div>
+                        <div className="w-[18px] h-[9px] border border-zinc-400/80 rounded-[2px] p-[1px] flex items-center">
+                          <div className="h-full w-[85%] bg-emerald-500 rounded-[1px]"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Video Area */}
+                    <div className="absolute inset-0 bg-zinc-950 overflow-hidden rounded-[38px]">
+                        
+                        {getInstagramEmbedUrl(refFehrmann?.reelLink || fehrmannStats?.reelLink) ? (
+                          <div className="absolute inset-0 z-0 bg-black">
+                            <iframe
+                              src={getInstagramEmbedUrl(refFehrmann?.reelLink || fehrmannStats?.reelLink)!}
+                              className="absolute w-[102%] h-[calc(100%+114px)] -top-[54px] -left-[1%] border-0"
+                              allowFullScreen
+                              scrolling="no"
+                              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                              title="Instagram Reel"
+                              loading="lazy"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                          {/* Photo content or actual uploaded Video background */}
+                          <div className="absolute inset-0 z-0 overflow-hidden">
+                            {refFehrmann?.mediaType === 'video' && refFehrmann?.imageUrl ? (
+                              <video
+                                src={refFehrmann.imageUrl}
+                                className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingFehrmannReel ? 'opacity-100' : 'opacity-40'}`}
+                                muted
+                                loop
+                                playsInline
+                                ref={(el) => {
+                                  if (el) {
+                                      if (isPlayingFehrmannReel) {
+                                        el.play().catch(() => {});
+                                      } else {
+                                        el.pause();
+                                      }
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <img
+                                src={refFehrmann?.imageUrl || "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=400&auto=format&fit=crop&q=70"}
+                                alt="Fehrmann Glas & Design"
+                                className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingFehrmannReel ? 'opacity-80 scale-105 saturate-110' : 'opacity-40'}`}
+                                referrerPolicy="no-referrer"
+                              />
+                            )}
+                          </div>
+
+                          {/* Play/Pause Button Overlay */}
+                          <button
+                            onClick={() => {
+                              setIsPlayingFehrmannReel(!isPlayingFehrmannReel);
+                            }}
+                            className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/20 hover:bg-black/30 transition-all z-10 cursor-pointer border-0"
+                            id="play-fehrmann-reel-button"
+                          >
+                            {!isPlayingFehrmannReel && (
+                              <div className="p-4 rounded-full bg-accent text-black scale-100 hover:scale-110 transition-transform shadow-lg">
+                                <Play className="w-6 h-6 fill-current" />
+                              </div>
+                            )}
+                            {isPlayingFehrmannReel && (
+                              <div className="p-4 rounded-full bg-black/40 text-white scale-100 hover:scale-110 transition-transform opacity-0 hover:opacity-100 duration-300">
+                                <Pause className="w-6 h-6 fill-current" />
+                              </div>
+                            )}
+                          </button>
+
+                          {/* Left Bottom Info Overlay */}
+                          <div className="absolute left-4 bottom-4 z-20 text-white select-none max-w-[80%] mb-2 text-left">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              {refFehrmann?.logoUrl ? (
+                                <div className="h-6 flex items-center shrink-0 bg-white/10 px-1 rounded border border-accent/20">
+                                  <img 
+                                    src={refFehrmann.logoUrl} 
+                                    alt={refFehrmann.name} 
+                                    className="max-h-5 max-w-[50px] object-contain"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-6 h-6 rounded bg-accent/25 border border-accent flex items-center justify-center font-display text-[9px] font-black shrink-0 uppercase">
+                                  {(refFehrmann?.name || 'FE').slice(0, 2)}
+                                </div>
+                              )}
+                              <span className="text-xs font-bold font-sans tracking-wide">
+                                {refFehrmann?.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '') || 'fehrmann_glas'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] leading-tight text-white/95 line-clamp-3">
+                              {refFehrmann?.testimonial?.text || 'Ästhetik, Handwerk und Präzision vereint in einzigartigen Glaskreationen. ✨🔮 Entdecke neue Perspektiven! #glasdesign #handwerk #interiordesign'}
+                            </p>
+                            <div className="mt-2.5 flex items-center gap-1 text-[9px] font-mono text-[#ffcc00]">
+                              <Sparkles className="w-3 h-3 anim-pulse" />
+                              <span>Sound von floriankusche.social</span>
+                            </div>
+                          </div>
+
+                          {/* Right Side Column Buttons */}
+                          <div className="absolute right-2 bottom-12 flex flex-col items-center gap-3.5 z-20">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLikeFehrmannReel();
+                              }}
+                              className="flex flex-col items-center transition-all hover:scale-110 cursor-pointer bg-transparent border-0"
+                              id="like-fehrmann-reel"
+                            >
+                              <div className={`p-2 rounded-full ${isFehrmannLiked ? 'bg-red-500/25 text-red-500' : 'bg-black/45 text-white'}`}>
+                                <Heart className={`w-4 h-4 ${isFehrmannLiked ? 'fill-current' : ''}`} />
+                              </div>
+                              <span className="text-[9px] text-white mt-0.5">{fehrmannLikes}</span>
+                            </button>
+
+                            <div className="flex flex-col items-center">
+                              <div className="p-2 rounded-full bg-black/45 text-white">
+                                <MessageCircle className="w-4 h-4" />
+                              </div>
+                              <span className="text-[9px] text-white mt-0.5">42</span>
+                            </div>
+
+                            <div className="flex flex-col items-center">
+                              <div className="p-2 rounded-full bg-black/45 text-white">
+                                <Send className="w-4 h-4" />
+                              </div>
+                              <span className="text-[9px] text-white mt-0.5">28</span>
+                            </div>
+
+                            <div className="flex flex-col items-center">
+                              <div className="p-2 rounded-full bg-black/45 text-white">
+                                <Bookmark className="w-4 h-4" />
+                              </div>
+                              <span className="text-[9px] text-white mt-0.5">19</span>
+                            </div>
+                          </div>
+
+                          {/* High-Fidelity Instagram-style Bottom Progress Bar */}
+                          <div className="absolute bottom-2 left-4 right-4 h-[2px] bg-white/20 rounded overflow-hidden z-25">
+                            <div 
+                              className="h-full bg-accent transition-all duration-100 ease-linear"
+                              style={{ width: `${fehrmannProgress}%` }}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side: Fehrmann Stats Graphic */}
+              <div className="space-y-4">
+                <div className="space-y-2 text-center lg:text-left">
+                  <span className="font-mono text-[10px] text-accent tracking-[0.2em] uppercase block">
+                    Live-Ergebnisse: {refFehrmann?.name || 'Fehrmann'}
+                  </span>
+                  <h3 className="font-display text-xl font-bold text-white uppercase tracking-wider">
+                    Sichtbarkeit & Reichweite
+                  </h3>
+                  <p className="text-xs text-[#cce9ff]/75 leading-relaxed max-w-md mx-auto lg:mx-0">
+                    Unsere datengetriebene Reels-Strategie sorgt für überproportionales Wachstum in der Zielgruppe. Die Zahlenwerte passen sich dynamisch an.
+                  </p>
+                </div>
+
+                <div className="relative bg-gradient-to-b from-[#0f4b73] via-[#013554] to-[#001f33] border border-[#014e7a]/40 rounded-3xl p-6 sm:p-8 overflow-hidden shadow-2xl flex flex-col items-center justify-between min-h-[360px] sm:min-h-[420px] w-full">
+                  
+                  {/* Glossy Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 pointer-events-none" />
+
+                  {/* Grid Lines for Chart feel */}
+                  <div className="absolute inset-x-0 bottom-16 top-12 flex flex-col justify-between pointer-events-none opacity-10">
+                    <div className="h-[1px] bg-white w-full"></div>
+                    <div className="h-[1px] bg-white w-full"></div>
+                    <div className="h-[1px] bg-white w-full"></div>
+                    <div className="h-[1px] bg-white w-full"></div>
+                  </div>
+
+                  {/* Upward Winding Green Arrow (SVG) */}
+                  <svg
+                    viewBox="0 0 500 300"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute inset-0 w-full h-full pointer-events-none z-10"
+                  >
+                    <defs>
+                      <linearGradient id="arrowGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#a3e635" />
+                        <stop offset="100%" stopColor="#22c55e" />
+                      </linearGradient>
+                      <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                        <feDropShadow dx="2" dy="6" stdDeviation="4" floodColor="#000" floodOpacity="0.35" />
+                      </filter>
+                    </defs>
+                    
+                    {/* The curved 3D Arrow Path */}
+                    <motion.path
+                      d="M 60,180 Q 140,40 220,120 T 420,50"
+                      stroke="url(#arrowGrad)"
+                      strokeWidth="16"
+                      strokeLinecap="round"
+                      fill="none"
+                      filter="url(#shadow)"
+                      initial={{ pathLength: 0 }}
+                      whileInView={{ pathLength: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                    />
+
+                    {/* Arrowhead */}
+                    <path
+                      d="M 405,42 L 435,46 L 424,76 Z"
+                      fill="#22c55e"
+                      filter="url(#shadow)"
+                    />
+                  </svg>
+
+                  {/* The 3 Vertical Pill Columns */}
+                  <div className="relative z-20 flex justify-around items-end w-full h-[220px] sm:h-[260px] mt-12 gap-4 sm:gap-6">
+                    
+                    {/* Column 1: AUFRUFE */}
+                    <div className="flex flex-col items-center w-[25%] h-full justify-end">
+                      {/* Number on Top */}
+                      <span className="text-[#93c5fd] font-display text-sm sm:text-base font-black mb-2 tracking-tight select-none text-center">
+                        {fehrmannStats?.aufrufe || '+ 270 %'}
+                      </span>
+                      {/* The Pill Bar */}
+                      <div 
+                        className="w-full bg-gradient-to-t from-[#1d4ed8] via-[#2563eb] to-[#60a5fa] rounded-3xl flex items-center justify-center relative shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_8px_16px_rgba(0,0,0,0.3)] border border-[#3b82f6]/40 hover:scale-105 hover:brightness-110 transition-all duration-300 group cursor-pointer"
+                        style={{ height: '55%' }}
+                      >
+                        {/* Inner Shine */}
+                        <div className="absolute inset-y-0 left-1 w-1/3 bg-gradient-to-r from-white/20 to-transparent rounded-l-3xl pointer-events-none" />
+                        {/* Vertical Rotated Text */}
+                        <span className="font-display font-black text-[10px] sm:text-xs text-[#002d47]/80 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180 py-4 select-none">
+                          AUFRUFE
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Column 2: REICHWEITE */}
+                    <div className="flex flex-col items-center w-[25%] h-full justify-end">
+                      {/* Number on Top */}
+                      <span className="text-[#7ff2db] font-display text-sm sm:text-base font-black mb-2 tracking-tight select-none text-center">
+                        {fehrmannStats?.reichweite || '+ 2.000 %'}
+                      </span>
+                      {/* The Pill Bar */}
+                      <div 
+                        className="w-full bg-gradient-to-t from-[#0f766e] via-[#0d9488] to-[#2dd4bf] rounded-3xl flex items-center justify-center relative shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_8px_16px_rgba(0,0,0,0.3)] border border-[#14b8a6]/40 hover:scale-105 hover:brightness-110 transition-all duration-300 group cursor-pointer"
+                        style={{ height: '78%' }}
+                      >
+                        {/* Inner Shine */}
+                        <div className="absolute inset-y-0 left-1 w-1/3 bg-gradient-to-r from-white/20 to-transparent rounded-l-3xl pointer-events-none" />
+                        {/* Vertical Rotated Text */}
+                        <span className="font-display font-black text-[10px] sm:text-xs text-[#002d47]/80 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180 py-4 select-none">
+                          REICHWEITE
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Column 3: INTERAKTION */}
+                    <div className="flex flex-col items-center w-[25%] h-full justify-end">
+                      {/* Number on Top */}
+                      <span className="text-[#a7f3d0] font-display text-sm sm:text-base font-black mb-2 tracking-tight select-none text-center">
+                        {fehrmannStats?.interaktion || '+ 9.000 %'}
+                      </span>
+                      {/* The Pill Bar */}
+                      <div 
+                        className="w-full bg-gradient-to-t from-[#047857] via-[#10b981] to-[#34d399] rounded-3xl flex items-center justify-center relative shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_8px_16px_rgba(0,0,0,0.3)] border border-[#10b981]/40 hover:scale-105 hover:brightness-110 transition-all duration-300 group cursor-pointer"
+                        style={{ height: '95%' }}
+                      >
+                        {/* Inner Shine */}
+                        <div className="absolute inset-y-0 left-1 w-1/3 bg-gradient-to-r from-white/20 to-transparent rounded-l-3xl pointer-events-none" />
+                        {/* Vertical Rotated Text */}
+                        <span className="font-display font-black text-[10px] sm:text-xs text-[#002d47]/80 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180 py-4 select-none">
+                          INTERAKTION
+                        </span>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
           </div>
         )}
 
@@ -272,60 +642,69 @@ export default function References({ references }: { references?: ClientReferenc
                     {/* Video Area (Simulated Container) */}
                     <div className="absolute inset-0 bg-zinc-950 overflow-hidden rounded-[38px]">
                       
-                      {/* Photo content or actual uploaded Video background */}
-                      <div className="absolute inset-0 z-0 overflow-hidden">
-                        {getInstagramEmbedUrl(refRodizio.reelLink) ? (
+                      {getInstagramEmbedUrl(refRodizio.reelLink) ? (
+                        <div className="absolute inset-0 z-0 bg-black">
                           <iframe
                             src={getInstagramEmbedUrl(refRodizio.reelLink)!}
                             className="absolute w-[102%] h-[calc(100%+114px)] -top-[54px] -left-[1%] border-0"
                             allowFullScreen
                             scrolling="no"
                             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                            title="Instagram Reel"
+                            loading="lazy"
                           />
-                        ) : refRodizio.mediaType === 'video' && refRodizio.imageUrl ? (
-                          <video
-                            src={refRodizio.imageUrl}
-                            className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingReel ? 'opacity-100' : 'opacity-40'}`}
-                            muted
-                            loop
-                            playsInline
-                            ref={(el) => {
-                              if (el) {
-                                  if (isPlayingReel) {
-                                    el.play().catch(() => {});
-                                  } else {
-                                    el.pause();
-                                  }
-                              }
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src={refRodizio.imageUrl || "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&auto=format&fit=crop&q=70"}
-                            alt="Steakhouse steak"
-                            className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingReel ? 'opacity-80 scale-105 saturate-110' : 'opacity-40 animate-pulse'}`}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                      </div>
-
-                      {!getInstagramEmbedUrl(refRodizio.reelLink) && (
+                        </div>
+                      ) : (
                         <>
-                          {/* Play/Pause Button Overlay */}
-                          <button
-                            onClick={() => setIsPlayingReel(!isPlayingReel)}
-                            className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/20 hover:bg-black/30 transition-all z-10 cursor-pointer"
-                            id="play-reel-button"
-                          >
+                        {/* Photo content or actual uploaded Video background */}
+                        <div className="absolute inset-0 z-0 overflow-hidden">
+                          {refRodizio.mediaType === 'video' && refRodizio.imageUrl ? (
+                            <video
+                              src={refRodizio.imageUrl}
+                              className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingReel ? 'opacity-100' : 'opacity-40'}`}
+                              muted
+                              loop
+                              playsInline
+                              ref={(el) => {
+                                if (el) {
+                                    if (isPlayingReel) {
+                                      el.play().catch(() => {});
+                                    } else {
+                                      el.pause();
+                                    }
+                                }
+                              }}
+                            />
+                          ) : (
+                            <img
+                              src={refRodizio.imageUrl || "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&auto=format&fit=crop&q=70"}
+                              alt="Steakhouse steak"
+                              className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingReel ? 'opacity-80 scale-105 saturate-110' : 'opacity-40'}`}
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                        </div>
+
+                        {/* Play/Pause Button Overlay */}
+                        <button
+                          onClick={() => setIsPlayingReel(!isPlayingReel)}
+                          className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/20 hover:bg-black/30 transition-all z-10 cursor-pointer border-0"
+                          id="play-reel-button"
+                        >
                             {!isPlayingReel && (
                               <div className="p-4 rounded-full bg-accent text-black scale-100 hover:scale-110 transition-transform shadow-lg">
                                 <Play className="w-6 h-6 fill-current" />
                               </div>
                             )}
+                            {isPlayingReel && (
+                              <div className="p-4 rounded-full bg-black/40 text-white scale-100 hover:scale-110 transition-transform opacity-0 hover:opacity-100 duration-300">
+                                <Pause className="w-6 h-6 fill-current" />
+                              </div>
+                            )}
                           </button>
 
                           {/* Left Bottom Info Overlay */}
-                          <div className="absolute left-4 bottom-4 z-20 text-white select-none max-w-[80%] mb-2">
+                          <div className="absolute left-4 bottom-4 z-20 text-white select-none max-w-[80%] mb-2 text-left">
                             <div className="flex items-center gap-1.5 mb-2">
                               {refRodizio.logoUrl ? (
                                 <div className="h-6 flex items-center shrink-0 bg-white/10 px-1 rounded border border-accent/20">
@@ -342,20 +721,9 @@ export default function References({ references }: { references?: ClientReferenc
                               )}
                               <span className="text-xs font-bold font-sans tracking-wide">{refRodizio.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '') || 'rodizio'}</span>
                             </div>
-                            <p className="text-[10px] leading-tight text-white/95">
+                            <p className="text-[10px] leading-tight text-white/95 line-clamp-3">
                               {refRodizio.testimonial?.text || 'Frischer Grill-Spieß direkt an deinen Tisch! 🔥🥩 Unfassbare Geschmacksexplosion bei uns. Kommt vorbei! #rodizio #barbecue #foodie'}
                             </p>
-                            {refRodizio.reelLink && (
-                              <a 
-                                href={refRodizio.reelLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-2 inline-flex items-center gap-1 text-[9px] text-[#ffcc00] font-bold hover:underline"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                <span>Auf Instagram ansehen</span>
-                              </a>
-                            )}
                             <div className="mt-2.5 flex items-center gap-1 text-[9px] font-mono text-[#ffcc00]">
                               <Sparkles className="w-3 h-3 anim-pulse" />
                               <span>Sound von floriankusche.social</span>
@@ -365,8 +733,11 @@ export default function References({ references }: { references?: ClientReferenc
                           {/* Right Side Column Buttons (Instagram Style) */}
                           <div className="absolute right-2 bottom-12 flex flex-col items-center gap-3.5 z-20">
                             <button
-                              onClick={handleLikeReel}
-                              className="flex flex-col items-center transition-all hover:scale-110 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLikeReel();
+                              }}
+                              className="flex flex-col items-center transition-all hover:scale-110 cursor-pointer bg-transparent border-0"
                               id="like-rodizio-reel"
                             >
                               <div className={`p-2 rounded-full ${isLiked ? 'bg-red-500/25 text-red-500' : 'bg-black/45 text-white'}`}>
@@ -395,11 +766,11 @@ export default function References({ references }: { references?: ClientReferenc
                           </div>
 
                           {/* Reel Timeline Progress Bar */}
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-zinc-800 z-20">
+                          <div className="absolute bottom-2 left-4 right-4 h-[2px] bg-white/20 rounded overflow-hidden z-25">
                             <div
                               className="h-full bg-accent transition-all duration-100 ease-linear"
                               style={{ width: `${progress}%` }}
-                            ></div>
+                            />
                           </div>
                         </>
                       )}
@@ -484,8 +855,33 @@ export default function References({ references }: { references?: ClientReferenc
                       className="bg-brand-darker border border-[#014e7a]/30 rounded-2xl p-6 flex flex-col justify-between shadow-lg hover:border-accent hover:shadow-[#014e7a]/20 transition-all duration-300"
                     >
                       <div className="space-y-4">
-                        {/* Optional Image or Video */}
-                        {ref.imageUrl ? (
+                        {/* Direct Instagram Embed or Optional Uploaded Image/Video */}
+                        {getInstagramEmbedUrl(ref.reelLink) ? (
+                          <div className="w-full flex justify-center mb-4">
+                            <div className="w-[240px] h-[420px] rounded-[32px] border border-[#014e7a]/40 bg-black shadow-lg relative overflow-hidden select-none">
+                              {/* Status bar */}
+                              <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-black/70 to-transparent flex items-center justify-between px-3 text-[8px] font-sans font-semibold text-zinc-400 z-30 select-none">
+                                <span>12:30</span>
+                                <div className="w-10 h-2 bg-black rounded-full border border-zinc-900/40"></div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[6px]">5G</span>
+                                  <div className="w-2.5 h-1.5 bg-emerald-500/80 rounded-[1px]"></div>
+                                </div>
+                              </div>
+                              <div className="absolute inset-0 bg-zinc-950 overflow-hidden rounded-[30px]">
+                                <iframe
+                                  src={getInstagramEmbedUrl(ref.reelLink)!}
+                                  className="absolute w-[102%] h-[calc(100%+114px)] -top-[54px] -left-[1%] border-0"
+                                  scrolling="no"
+                                  allowFullScreen
+                                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                                  title="Instagram Reel"
+                                  loading="lazy"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ) : ref.imageUrl ? (
                           <div className="w-full h-44 bg-zinc-950 rounded-xl overflow-hidden mb-4 border border-[#014e7a]/20 relative group">
                             {ref.mediaType === 'video' ? (
                               <video
@@ -504,40 +900,9 @@ export default function References({ references }: { references?: ClientReferenc
                                 referrerPolicy="no-referrer"
                               />
                             )}
-                            {ref.reelLink && (
-                              <button
-                                onClick={() => {
-                                  setActiveModalReel(ref.reelLink || null);
-                                  setActiveModalTitle(ref.name);
-                                }}
-                                className="absolute bottom-2 right-2 p-1.5 bg-black/85 hover:bg-black text-[#ffcc00] rounded-lg border border-[#ffcc00]/20 flex items-center gap-1 text-[10px] font-mono font-semibold opacity-90 hover:opacity-100 transition-opacity z-10 shadow cursor-pointer"
-                              >
-                                <Play className="w-3 h-3 fill-current" />
-                                <span>Reel</span>
-                                <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                              </button>
-                            )}
                           </div>
                         ) : (
-                          ref.reelLink ? (
-                            <div className="mb-4">
-                              <button
-                                onClick={() => {
-                                  setActiveModalReel(ref.reelLink || null);
-                                  setActiveModalTitle(ref.name);
-                                }}
-                                className="w-full h-24 bg-[#002d47]/40 border border-[#014e7a]/30 hover:border-accent rounded-xl flex flex-col items-center justify-center text-center p-3 gap-1 transition-all cursor-pointer"
-                              >
-                                <Play className="w-5 h-5 text-[#ffcc00] fill-current animate-pulse mb-1" />
-                                <span className="text-[10px] font-mono text-[#cce9ff]/80">Instagram Reel</span>
-                                <span className="text-xs font-bold text-white hover:underline flex items-center gap-1">
-                                  Reel ansehen <ExternalLink className="w-3 h-3" />
-                                </span>
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="w-full h-1 bg-gradient-to-r from-accent/50 to-transparent rounded mb-4" />
-                          )
+                          <div className="w-full h-1 bg-gradient-to-r from-accent/50 to-transparent rounded mb-4" />
                         )}
 
                         <div className="flex justify-between items-start gap-2">
@@ -677,15 +1042,20 @@ export default function References({ references }: { references?: ClientReferenc
                 </div>
 
                 {/* Footer link in modal */}
-                <a 
-                  href={activeModalReel}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#ffcc00] font-bold hover:underline"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Direkt auf Instagram ansehen</span>
-                </a>
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <a 
+                    href={activeModalReel}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#ffcc00] font-bold hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Direkt auf Instagram ansehen</span>
+                  </a>
+                  <p className="text-[10px] text-[#cce9ff]/60 max-w-[280px] leading-relaxed">
+                    Hinweis: Falls die Video-Wiedergabe durch Cookie- oder Datenschutzfilter deines Browsers blockiert wird, klicke einfach auf den Link oben, um das Reel direkt auf Instagram anzusehen.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

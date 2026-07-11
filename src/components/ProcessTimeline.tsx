@@ -4,9 +4,9 @@ import { PROCESS_STEPS } from '../data';
 
 const STEP_ICONS = [Send, PhoneCall, ScrollText, CheckCircle2];
 
-import { ProcessStep } from '../types';
+import { ProcessStep, TrustBlockConfig } from '../types';
 
-export default function ProcessTimeline({ onOpenBooking, processes }: { onOpenBooking: () => void; processes?: ProcessStep[] }) {
+export default function ProcessTimeline({ onOpenBooking, processes, trustBlock }: { onOpenBooking: () => void; processes?: ProcessStep[]; trustBlock?: TrustBlockConfig }) {
   const currentProcesses = processes || PROCESS_STEPS;
   return (
     <section id="prozess" className="py-20 md:py-28 bg-[#002d47] relative px-4 sm:px-6">
@@ -91,17 +91,22 @@ export default function ProcessTimeline({ onOpenBooking, processes }: { onOpenBo
               ZUSAMMENARBEIT-PHILO
             </span>
             <h3 className="font-display text-2xl font-black text-white uppercase tracking-tight">
-              Keine Schnupperangebote. <br />
-              <span className="text-[#ffcc00]">Klare Verbindlichkeit.</span>
+              {trustBlock?.title || 'Keine Schnupperangebote.'} <br />
+              <span className="text-[#ffcc00]">{trustBlock?.subtitle || 'Klare Verbindlichkeit.'}</span>
             </h3>
-            <p className="text-xs text-[#cce9ff]/75 leading-relaxed">
-              Ich glaube an nachhaltiges Wachstum und erstklassigen Service. Social Media funktioniert nicht über Nacht. Der beste und fairste Einstieg ist das kostenlose Erstgespräch, bei dem wir deine langfristigen Potenziale ermitteln.
-            </p>
+            <div className="space-y-3">
+              <p className="text-xs text-[#cce9ff]/75 leading-relaxed">
+                {trustBlock?.paragraph1 || 'Ich glaube an nachhaltiges Wachstum und erstklassigen Service. Social Media funktioniert nicht über Nacht. Der beste und fairste Einstieg ist das kostenlose Erstgespräch, bei dem wir deine langfristigen Potenziale ermitteln.'}
+              </p>
+              <p className="text-xs text-[#cce9ff]/75 leading-relaxed border-t border-[#014e7a]/30 pt-3">
+                {trustBlock?.paragraph2 || 'Ich verkaufe keine Wunder. Ich arbeite mit dem, was an deinem Business, deinem Team oder deinem Handwerk bereits überzeugt, und mache genau das sichtbar. Keine übertriebenen Reichweiten-Versprechen, sondern realistische, nachvollziehbare Ergebnisse.'}
+              </p>
+            </div>
             <button
               onClick={onOpenBooking}
               className="py-3 px-6 bg-accent text-black font-display text-xs tracking-widest font-black uppercase rounded-xl hover:bg-[#ebd500] cursor-pointer shadow-lg transition-transform hover:scale-105"
             >
-              Kostenloses Erstgespräch buchen
+              {trustBlock?.buttonText || 'Kostenloses Erstgespräch buchen'}
             </button>
           </div>
 

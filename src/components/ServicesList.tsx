@@ -33,10 +33,13 @@ export default function ServicesList({
     'Mein Versprechen: Hochwertiger, strategischer Content, der deine Markenbotschaft trägt und aus Followern messbare Leads generiert. Komplett von mir abgewickelt, ohne Stress für dich.'
   ];
 
-  const getServiceFeatures = (serviceId: string): string[] => {
-    switch (serviceId) {
+  const getServiceFeatures = (service: Service): string[] => {
+    if (service.features && service.features.length > 0) {
+      return service.features;
+    }
+    switch (service.id) {
       case 'content-creation':
-        return ['Konzeptstarke Reels', 'Wertvolle Carousels', 'Interaktive Stories'];
+        return ['Konzeptstarke Reels', 'Wertvolle Carousels', 'Interaktive Stories', 'Captions on Point'];
       case 'strategy':
         return ['Zielgruppen-Psychologie', 'Klare Positionierung', 'Maßgeschneiderter Fahrplan'];
       case 'management':
@@ -131,7 +134,7 @@ export default function ServicesList({
         <div className="space-y-6 mb-10 text-left" id="primary-services-container">
           {finalPrimaryServices.map((pService) => {
             const PrimaryIcon = ICON_MAP[pService.id] || Sparkles;
-            const features = getServiceFeatures(pService.id);
+            const features = getServiceFeatures(pService);
             return (
               <motion.div
                 key={pService.id}
@@ -195,11 +198,6 @@ export default function ServicesList({
                           <span className="font-semibold">{feature}</span>
                         </div>
                       ))}
-                    </div>
-
-                    {/* Interactive Help Hint for high CTR and clear clickability */}
-                    <div className="text-accent/90 font-mono text-[10px] tracking-widest uppercase mt-5 flex items-center gap-1.5 group-hover:text-white transition-colors duration-300 animate-pulse">
-                      <span>⚡ KLICKE ÜBERALL AUF DIESEN BANNER, UM JETZT DIREKT ANZUPHRAGEN!</span>
                     </div>
                   </div>
 

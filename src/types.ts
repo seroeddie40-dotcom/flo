@@ -4,6 +4,7 @@ export interface Service {
   description: string;
   label: string; // CREATE, STRATEGY, MANAGE, ENGAGE, ANALYZE, PLAN
   isPrimary?: boolean;
+  features?: string[];
 }
 
 export interface Tool {
@@ -60,6 +61,10 @@ export interface FooterConfig {
   email: string;
   instagram: string;
   location: string;
+  pdfUrl?: string;
+  pdfFilename?: string;
+  imprintText?: string;
+  privacyText?: string;
 }
 
 export interface OnePagerStep {
@@ -105,6 +110,24 @@ export interface ColorConfig {
   brandDarkCardBrightness: number;
 }
 
+export interface AboutSectionConfig {
+  enabled: boolean;
+  eyebrow?: string;
+  title?: string;
+  text?: string;
+  imageUrl?: string;
+  imageEnabled?: boolean;
+}
+
+export interface TrustBlockConfig {
+  title?: string;
+  subtitle?: string;
+  paragraph1?: string;
+  paragraph2?: string;
+  buttonLabel?: string;
+  buttonText?: string;
+}
+
 export interface LandingPageData {
   isFallback?: boolean;
   hero: HeroConfig;
@@ -118,6 +141,14 @@ export interface LandingPageData {
   onePager?: OnePagerConfig;
   servicesSection?: ServicesSectionConfig;
   colors?: ColorConfig;
+  about?: AboutSectionConfig;
+  trustBlock?: TrustBlockConfig;
+  fehrmannStats?: {
+    aufrufe: string;
+    reichweite: string;
+    interaktion: string;
+    reelLink?: string;
+  };
   calendly?: {
     calendlyUrl?: string;
     calendlyToken?: string;
