@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { FileText, Download, Check, Sparkles, Eye, X, Copy, ExternalLink, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { OnePagerConfig } from '../types';
+import { reconstructChunkedString } from '../lib/firebase';
 
 export default function OnePagerMockup({ config }: { config?: OnePagerConfig }) {
   const [downloaded, setDownloaded] = useState(false);
@@ -35,37 +36,61 @@ export default function OnePagerMockup({ config }: { config?: OnePagerConfig }) 
   }, [isViewerOpen, pdfjs, isPdfjsLoading]);
 
   useEffect(() => {
+    let active = true;
+    let localBlobUrl = '';
+
     if (!config?.documentUrl) {
       setViewerUrl('');
       return;
     }
 
-    const url = config.documentUrl;
-    if (url.startsWith('data:')) {
-      try {
-        const parts = url.split(',');
-        const mimeMatch = parts[0].match(/:(.*?);/);
-        const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
+    const loadViewerUrl = async () => {
+      let url = config.documentUrl;
+      if (url.startsWith('chunked://')) {
+        try {
+          url = await reconstructChunkedString(url);
+        } catch (err) {
+          console.error('Failed to reconstruct chunked URL for viewer:', err);
         }
-        const blob = new Blob([u8arr], { type: mime });
-        const blobUrl = URL.createObjectURL(blob);
-        setViewerUrl(blobUrl);
-
-        return () => {
-          URL.revokeObjectURL(blobUrl);
-        };
-      } catch (err) {
-        console.error('Error generating blob URL for preview:', err);
-        setViewerUrl(url);
       }
-    } else {
-      setViewerUrl(url);
-    }
+
+      if (!active) return;
+
+      if (url.startsWith('data:')) {
+        try {
+          const parts = url.split(',');
+          const mimeMatch = parts[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+          // Clean base64 for atob safety
+          const base64Clean = parts[1].replace(/\s/g, '');
+          const bstr = atob(base64Clean);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          localBlobUrl = URL.createObjectURL(blob);
+          if (active) {
+            setViewerUrl(localBlobUrl);
+          }
+        } catch (err) {
+          console.error('Error generating blob URL for preview:', err);
+          if (active) setViewerUrl(url);
+        }
+      } else {
+        if (active) setViewerUrl(url);
+      }
+    };
+
+    loadViewerUrl();
+
+    return () => {
+      active = false;
+      if (localBlobUrl) {
+        URL.revokeObjectURL(localBlobUrl);
+      }
+    };
   }, [config?.documentUrl]);
 
   // Fallbacks if database contains no elements yet
@@ -110,16 +135,26 @@ export default function OnePagerMockup({ config }: { config?: OnePagerConfig }) 
     URL.revokeObjectURL(url);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setDownloaded(true);
 
     if (config?.documentUrl) {
       try {
-        if (config.documentUrl.startsWith('data:')) {
+        let activeUrl = config.documentUrl;
+        if (activeUrl.startsWith('chunked://')) {
+          try {
+            activeUrl = await reconstructChunkedString(activeUrl);
+          } catch (err) {
+            console.error('Failed to reconstruct chunked URL during download:', err);
+          }
+        }
+
+        if (activeUrl.startsWith('data:')) {
           // Parse the data URL into a Blob to bypass browser security policies and download limits
-          const parts = config.documentUrl.split(',');
+          const parts = activeUrl.split(',');
           const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
-          const bstr = atob(parts[1]);
+          const base64Clean = parts[1].replace(/\s/g, '');
+          const bstr = atob(base64Clean);
           let n = bstr.length;
           const u8arr = new Uint8Array(n);
           while (n--) {
@@ -135,14 +170,16 @@ export default function OnePagerMockup({ config }: { config?: OnePagerConfig }) 
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
-        } else {
+        } else if (activeUrl && activeUrl !== '') {
           // Standard web URL download
           const link = document.createElement('a');
-          link.href = config.documentUrl;
+          link.href = activeUrl;
           link.download = config.documentFilename || 'Instagram_Formel_Handout.pdf';
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+        } else {
+          triggerFallbackDownload();
         }
       } catch (err) {
         console.error('Failed to download custom document:', err);

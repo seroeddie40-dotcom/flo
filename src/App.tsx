@@ -382,7 +382,7 @@ export default function App() {
       <ContactForm footer={pageData?.footer} contactImage={pageData?.contactImage} />
 
       {/* 8. Block 7: Rechtliches (Footer) */}
-      <LegalSection footer={pageData?.footer} />
+      <LegalSection footer={pageData?.footer} onePager={pageData?.onePager} />
 
       {/* 9. Cookie Consent Overlay */}
       <CookieBanner onAcceptThirdParty={(accepted) => setThirdPartyAllowed(accepted)} />

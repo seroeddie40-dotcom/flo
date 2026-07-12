@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, FileText, Loader2, File } from 'lucide-react';
+import { uploadFileToStorage } from '../lib/firebase';
 
 interface DocumentUploaderProps {
   id: string;
@@ -16,13 +17,13 @@ export default function DocumentUploader({ id, currentUrl, currentFilename, onCh
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Support large files by chunking them in Firestore (limit increased to 10 MB)
-  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+  // Enforce max 5 MB as requested by the user
+  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeInKb = Math.round(file.size / 1024);
-      setErrorMessage(`Datei ist zu groß (${sizeInKb} KB). Die maximale Dateigröße für den Upload beträgt 10 MB.`);
+      const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
+      setErrorMessage(`Datei ist zu groß (${sizeInMb} MB). Die maximale Dateigröße für den Upload beträgt 5 MB.`);
       return;
     }
 
@@ -30,34 +31,20 @@ export default function DocumentUploader({ id, currentUrl, currentFilename, onCh
     setUploadProgress(0);
     setErrorMessage('');
 
-    const reader = new FileReader();
-
-    reader.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100);
-        setUploadProgress(percent);
-      }
-    };
-
-    reader.onload = (event) => {
-      if (typeof event.target?.result === 'string') {
-        // Ensure progress hits 100% visibly before completing
-        setUploadProgress(100);
-        const dataUrl = event.target.result;
-        setTimeout(() => {
-          onChange(dataUrl, file.name);
-          setIsProcessing(false);
-        }, 400);
-      } else {
-        setErrorMessage('Fehler bei der Dateiverarbeitung.');
-        setIsProcessing(false);
-      }
-    };
-    reader.onerror = () => {
-      setErrorMessage('Datei konnte nicht gelesen werden.');
+    try {
+      const downloadUrl = await uploadFileToStorage(
+        file,
+        'documents',
+        file.name,
+        (progress) => setUploadProgress(progress)
+      );
+      onChange(downloadUrl, file.name);
       setIsProcessing(false);
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Firebase Storage upload failed:', err);
+      setErrorMessage('Upload fehlgeschlagen. Bitte versuche es erneut.');
+      setIsProcessing(false);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -163,7 +150,7 @@ export default function DocumentUploader({ id, currentUrl, currentFilename, onCh
               <p className="text-xs text-zinc-700 font-semibold">
                 Dokument hierher ziehen oder <span className="text-[#0073aa] underline">durchsuchen</span>
               </p>
-              <p className="text-[10px] text-zinc-400 uppercase font-mono">PDF, TXT, DOCX, etc. (Max. 10 MB)</p>
+              <p className="text-[10px] text-zinc-400 uppercase font-mono">PDF, TXT, DOCX, etc. (Max. 5 MB)</p>
             </div>
           )}
         </div>

@@ -2,65 +2,138 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck, Info, FileText, ChevronUp, ChevronDown, CheckCircle, Scale, ExternalLink } from 'lucide-react';
 
-import { FooterConfig } from '../types';
+import { FooterConfig, OnePagerConfig } from '../types';
+import { reconstructChunkedString } from '../lib/firebase';
 
-export default function LegalSection({ footer }: { footer?: FooterConfig }) {
+export default function LegalSection({ footer, onePager }: { footer?: FooterConfig; onePager?: OnePagerConfig }) {
   const currentEmail = footer?.email || 'florian@floriankusche.de';
   const currentPhone = footer?.phone || '+49 151 28897623';
   const currentLocation = footer?.location || 'Hannover, Deutschland';
 
   const [activeDrawer, setActiveDrawer] = useState<'impressum' | 'datenschutz' | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const toggleDrawer = (drawer: 'impressum' | 'datenschutz') => {
     setActiveDrawer(prev => (prev === drawer ? null : drawer));
   };
 
-  const handleDownloadPdf = () => {
-    if (!footer?.pdfUrl) return;
+  const downloadFile = async (url: string | undefined, filename: string | undefined, fallbackDefault: string) => {
+    if (!url) return;
+    setIsDownloading(true);
     try {
-      if (footer.pdfUrl.startsWith('data:')) {
-        const parts = footer.pdfUrl.split(',');
+      let activeUrl = url;
+      // On-the-fly chunk reconstruction in case the background load hadn't completed or has stale cache
+      if (activeUrl.startsWith('chunked://')) {
+        try {
+          activeUrl = await reconstructChunkedString(activeUrl);
+        } catch (err) {
+          console.error('Error reconstructing chunked file on-the-fly during download:', err);
+        }
+      }
+
+      if (activeUrl.startsWith('data:')) {
+        const parts = activeUrl.split(',');
         const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
-        const bstr = atob(parts[1]);
+        // Stripping whitespace/newlines is critical for atob stability with large binary base64 documents
+        const base64Clean = parts[1].replace(/\s/g, '');
+        const bstr = atob(base64Clean);
         let n = bstr.length;
         const u8arr = new Uint8Array(n);
         while (n--) {
           u8arr[n] = bstr.charCodeAt(n);
         }
         const blob = new Blob([u8arr], { type: mime });
-        const url = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(blob);
         
         const link = document.createElement('a');
-        link.href = url;
+        link.href = blobUrl;
         
-        let filename = 'Leistungsübersicht.pdf';
-        if (footer.pdfFilename) {
-          const ext = footer.pdfFilename.split('.').pop() || 'pdf';
-          filename = `Leistungsübersicht.${ext}`;
+        let targetFilename = fallbackDefault;
+        if (filename) {
+          const ext = filename.split('.').pop() || 'pdf';
+          targetFilename = `${filename.split('.')[0]}.${ext}`;
         }
-        link.download = filename;
+        link.download = targetFilename;
         
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(blobUrl);
       } else {
         const link = document.createElement('a');
-        link.href = footer.pdfUrl;
+        link.href = activeUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
         
-        let filename = 'Leistungsübersicht.pdf';
-        if (footer.pdfFilename) {
-          const ext = footer.pdfFilename.split('.').pop() || 'pdf';
-          filename = `Leistungsübersicht.${ext}`;
+        let targetFilename = fallbackDefault;
+        if (filename) {
+          const ext = filename.split('.').pop() || 'pdf';
+          targetFilename = `${filename.split('.')[0]}.${ext}`;
         }
-        link.download = filename;
+        link.download = targetFilename;
         
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
     } catch (err) {
-      console.error('Failed to download PDF:', err);
+      console.error('Failed to download file:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadOnePager = () => {
+    // If we have an active onepager document URL, use its URL and filename
+    // Otherwise, if we have a footer PDF URL, use its URL and filename
+    let urlToUse = '';
+    let nameToUse = '';
+    let defaultName = 'Leistungsübersicht.pdf';
+
+    if (footer?.pdfUrl && footer.pdfUrl !== '') {
+      urlToUse = footer.pdfUrl;
+      nameToUse = footer.pdfFilename || '';
+      defaultName = 'Leistungsübersicht.pdf';
+    } else if (onePager?.documentUrl && onePager.documentUrl !== '') {
+      urlToUse = onePager.documentUrl;
+      nameToUse = onePager.documentFilename || '';
+      defaultName = 'One-Pager.pdf';
+    }
+
+    if (urlToUse) {
+      downloadFile(urlToUse, nameToUse, defaultName);
+    } else {
+      // Fallback content matching OnePagerMockup to ensure the button is always functional
+      const ownerName = onePager?.ownerName || 'FLORIAN KUSCHE';
+      const title = onePager?.title || 'INSTAGRAM ERFOLGS-FAHRPLAN';
+      const description = onePager?.description || 'Der exakte Blueprint, mit dem ich deinen Account aufbaue und pflege, um konstante Sichtbarkeit und planbare Direktnachrichten-Leads zu erzeugen.';
+      const steps = onePager?.steps && onePager.steps.length > 0 ? onePager.steps : [
+        { label: '1. HOOK PSYCHOLOGIE', percentage: 85 },
+        { label: '2. VERKAUFSSTARKE CAROUSELS', percentage: 70 },
+        { label: '3. STORY-DIRECT-CTA', percentage: 92 },
+      ];
+      const calloutText = onePager?.calloutText || 'Erzielt im Schnitt +240% Engagement-Wachstum.';
+
+      let content = `${ownerName.toUpperCase()} - ${title.toUpperCase()}\n`;
+      content += `========================================================\n\n`;
+      content += `BESCHREIBUNG:\n${description}\n\n`;
+      content += `SCHLÜSSEL-STRATEGIEN:\n`;
+      steps.forEach((step, idx) => {
+        content += `${idx + 1}. ${step.label} (${step.percentage}% Fokus)\n`;
+      });
+      content += `\nFOKUS-ERGEBNIS:\n- ${calloutText}\n\n`;
+      content += `--------------------------------------------------------\n`;
+      content += `Direkt generiert auf dem Client-Portal.`;
+
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = onePager?.documentFilename || 'Florian_Kusche_Instagram_Strategie_OnePager.txt';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -80,16 +153,21 @@ export default function LegalSection({ footer }: { footer?: FooterConfig }) {
 
         {/* Right Side: Interactive Legal Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-mono tracking-widest uppercase">
-          {footer?.pdfUrl && (
-            <button
-              onClick={handleDownloadPdf}
-              className="py-2 px-4 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer bg-brand-dark border border-accent/40 hover:border-accent text-accent hover:text-white font-bold"
-              id="btn-pdf-download"
-            >
+          <button
+            onClick={handleDownloadOnePager}
+            disabled={isDownloading}
+            className={`py-2 px-4 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer bg-accent hover:bg-accent/90 hover:scale-105 active:scale-95 text-black font-extrabold border border-accent ${
+              isDownloading ? 'opacity-80 cursor-not-allowed' : 'animate-pulse'
+            }`}
+            id="btn-onepager-footer-download"
+          >
+            {isDownloading ? (
+              <span className="inline-block w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+            ) : (
               <FileText className="w-3.5 h-3.5" />
-              <span>Leistungsübersicht als PDF</span>
-            </button>
-          )}
+            )}
+            <span>{isDownloading ? 'Ladevorgang...' : 'Leistungsübersicht als PDF'}</span>
+          </button>
 
           <button
             onClick={() => toggleDrawer('impressum')}

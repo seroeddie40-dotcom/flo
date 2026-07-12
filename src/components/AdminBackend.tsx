@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError, uploadFileToStorage } from '../lib/firebase';
 import { loadLandingPageData, saveLandingPageData, DEFAULT_PAGE_DATA } from '../lib/cmsStore';
 import { LandingPageData, Service, Tool, ClientReference, ProcessStep, ColorConfig } from '../types';
 import ImageUploader from './ImageUploader';
@@ -284,33 +284,27 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
     if (!cmsData) return;
     setSaveStatus('saving');
     try {
-      if (cmsData.isFallback) {
-        // Safe local cache storage - don't overwrite cloud database with defaults
-        const cleanData = JSON.parse(JSON.stringify(cmsData)) as LandingPageData;
-        delete cleanData.isFallback;
-        localStorage.setItem('florian_cms_cache', JSON.stringify(cleanData));
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 6000);
-        return;
-      }
+      // Always attempt to save to the cloud database first to publish changes live
       await saveLandingPageData(cmsData);
+      
+      // If successful, clear the isFallback flag in our active state
+      if (cmsData.isFallback) {
+        setCmsData(prev => prev ? { ...prev, isFallback: false } : null);
+      }
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 4000);
     } catch (err: any) {
       logSafeFirebaseError('Error saving or publishing CMS data', err);
-      if (isQuotaError(err) || isOfflineError(err)) {
-        // Save to local cache first to ensure zero data loss
-        const cleanData = JSON.parse(JSON.stringify(cmsData)) as LandingPageData;
-        delete cleanData.isFallback;
-        localStorage.setItem('florian_cms_cache', JSON.stringify(cleanData));
-        
-        // Enter fallback mode immediately to display proper notice
-        setCmsData({ ...cmsData, isFallback: true });
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 6000);
-      } else {
-        setSaveStatus('error');
-      }
+      
+      // Fallback: Save to local cache first to ensure zero data loss
+      const cleanData = JSON.parse(JSON.stringify(cmsData)) as LandingPageData;
+      delete cleanData.isFallback;
+      localStorage.setItem('florian_cms_cache', JSON.stringify(cleanData));
+      
+      // Enter fallback mode immediately to display proper notice in the admin panel
+      setCmsData({ ...cmsData, isFallback: true });
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 6000);
     }
   };
 
@@ -333,15 +327,22 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
     });
   };
 
-  const updateFooterField = (field: keyof typeof DEFAULT_PAGE_DATA.footer, value: any) => {
+  const updateFooterFields = (fields: Record<string, any>) => {
     if (!cmsData) return;
-    setCmsData({
-      ...cmsData,
-      footer: {
-        ...cmsData.footer,
-        [field]: value
-      }
+    setCmsData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        footer: {
+          ...prev.footer,
+          ...fields
+        }
+      };
     });
+  };
+
+  const updateFooterField = (field: keyof typeof DEFAULT_PAGE_DATA.footer, value: any) => {
+    updateFooterFields({ [field]: value });
   };
 
   const updateColorField = (field: keyof ColorConfig, value: any) => {
@@ -1782,6 +1783,27 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                         }}
                         label="Handout-Quelldatei für Kunden-Download"
                       />
+                    </div>
+
+                    {/* LOCAL SAVE ACTION BUTTON */}
+                    <div className="pt-6 border-t border-zinc-200 flex justify-end items-center gap-3">
+                      {saveStatus === 'success' && (
+                        <span className="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+                          Änderungen erfolgreich veröffentlicht!
+                        </span>
+                      )}
+                      {saveStatus === 'error' && (
+                        <span className="text-xs text-red-600 font-bold bg-red-50 px-3 py-1.5 rounded-lg border border-red-200">
+                          Fehler beim Speichern. Bitte versuche es erneut.
+                        </span>
+                      )}
+                      <button
+                        onClick={handlePublish}
+                        disabled={saveStatus === 'saving'}
+                        className="py-2.5 px-6 bg-[#0073aa] hover:bg-[#005177] disabled:bg-zinc-300 text-white text-xs font-bold uppercase rounded-lg shadow-sm cursor-pointer transition-transform duration-100 active:scale-95 flex items-center gap-1.5"
+                      >
+                        <span>{saveStatus === 'saving' ? 'Wird gespeichert...' : 'Änderungen speichern & veröffentlichen'}</span>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -3550,8 +3572,10 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                           currentUrl={cmsData.footer?.pdfUrl || ''}
                           currentFilename={cmsData.footer?.pdfFilename || ''}
                           onChange={(url, filepath) => {
-                            updateFooterField('pdfUrl', url);
-                            updateFooterField('pdfFilename', filepath);
+                            updateFooterFields({
+                              pdfUrl: url,
+                              pdfFilename: filepath
+                            });
                           }}
                           label="Zugehöriges Dokument (*.pdf, *.txt, *.docx, *.png, *.jpg)"
                         />
@@ -3899,35 +3923,44 @@ export function VideoFileUploader({
   label?: string;
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Enforce max 20 MB as requested by the user
+  const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (!file.type.startsWith('video/')) {
         setError('Bitte wähle eine gültige Videodatei (MP4, MOV, WEBM).');
         return;
       }
-      if (file.size > 15 * 1024 * 1024) { // 15MB limit
-        setError('Das Video ist zu groß. Bitte lade eine Datei unter 15MB hoch, um Ladezeiten gering zu halten.');
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
+        setError(`Das Video ist zu groß (${sizeInMb} MB). Bitte lade eine Datei unter 20 MB hoch.`);
         return;
       }
 
       setIsProcessing(true);
+      setUploadProgress(0);
       setError('');
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (typeof event.target?.result === 'string') {
-          onChange(event.target.result);
-        }
+
+      try {
+        const downloadUrl = await uploadFileToStorage(
+          file,
+          'videos',
+          file.name,
+          (progress) => setUploadProgress(progress)
+        );
+        onChange(downloadUrl);
         setIsProcessing(false);
-      };
-      reader.onerror = () => {
-        setError('Fehler beim Lesen der Datei.');
+      } catch (err: any) {
+        console.error('Firebase Storage video upload failed:', err);
+        setError('Upload fehlgeschlagen. Bitte versuche es erneut.');
         setIsProcessing(false);
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -3978,15 +4011,21 @@ export function VideoFileUploader({
             className="hidden"
           />
           {isProcessing ? (
-            <div className="space-y-1">
+            <div className="space-y-2 w-full px-4 flex flex-col items-center">
               <Loader2 className="w-5 h-5 animate-spin text-[#0073aa] mx-auto" />
-              <p className="text-xs text-zinc-500 font-medium">Video wird geladen & kodiert...</p>
+              <p className="text-xs text-zinc-500 font-medium">Wird hochgeladen... {uploadProgress}%</p>
+              <div className="w-full max-w-xs bg-zinc-200 h-1.5 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className="bg-[#0073aa] h-full rounded-full transition-all duration-150" 
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
             </div>
           ) : (
             <div className="space-y-1">
               <Upload className="w-5 h-5 mx-auto text-zinc-400" />
               <p className="text-xs text-zinc-700 font-semibold">Video (.mp4, .mov, etc.) hochladen</p>
-              <p className="text-[10px] text-zinc-400 font-mono uppercase">Max. 15MB • Für mobile Reels optimiert</p>
+              <p className="text-[10px] text-zinc-400 font-mono uppercase">Max. 20MB • Für mobile Reels optimiert</p>
             </div>
           )}
         </div>

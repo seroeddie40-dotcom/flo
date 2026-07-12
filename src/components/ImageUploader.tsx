@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { uploadFileToStorage } from '../lib/firebase';
 
 interface ImageUploaderProps {
   id: string;
@@ -11,68 +12,43 @@ interface ImageUploaderProps {
 export default function ImageUploader({ id, currentValue, onChange, label }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const processFile = (file: File) => {
+  // Enforce max 5 MB as requested by the user
+  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+  const processFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setErrorMessage('Bitte wähle eine gültige Bilddatei (PNG, JPG, WEBP, etc.)');
       return;
     }
 
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
+      setErrorMessage(`Bild ist zu groß (${sizeInMb} MB). Die maximale Dateigröße für Bilder beträgt 5 MB.`);
+      return;
+    }
+
     setIsProcessing(true);
+    setUploadProgress(0);
     setErrorMessage('');
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        // Resize image to keep Firestore doc size small and performance super high
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600;
-        const MAX_HEIGHT = 600;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          // Compress as JPEG with 0.75 quality for visual perfectness and tiny size (~20-40kb)
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-          onChange(dataUrl);
-        } else {
-          setErrorMessage('Fehler bei der Bildverarbeitung.');
-        }
-        setIsProcessing(false);
-      };
-      img.onerror = () => {
-        setErrorMessage('Fehler beim Laden des Bildes.');
-        setIsProcessing(false);
-      };
-      if (typeof event.target?.result === 'string') {
-        img.src = event.target.result;
-      }
-    };
-    reader.onerror = () => {
-      setErrorMessage('Datei konnte nicht gelesen werden.');
+    try {
+      const downloadUrl = await uploadFileToStorage(
+        file,
+        'images',
+        file.name,
+        (progress) => setUploadProgress(progress)
+      );
+      onChange(downloadUrl);
       setIsProcessing(false);
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Firebase Storage upload failed:', err);
+      setErrorMessage('Upload fehlgeschlagen. Bitte versuche es erneut.');
+      setIsProcessing(false);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -164,9 +140,15 @@ export default function ImageUploader({ id, currentValue, onChange, label }: Ima
           />
 
           {isProcessing ? (
-            <div className="flex flex-col items-center justify-center space-y-2">
+            <div className="flex flex-col items-center justify-center space-y-2 w-full px-4">
               <Loader2 className="w-5 h-5 animate-spin text-[#0073aa]" />
-              <p className="text-xs text-zinc-500 font-medium">Bilder werden optimiert...</p>
+              <p className="text-xs text-zinc-700 font-bold">Wird hochgeladen... {uploadProgress}%</p>
+              <div className="w-full max-w-xs bg-zinc-200 h-2 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className="bg-[#0073aa] h-full rounded-full transition-all duration-150" 
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
             </div>
           ) : (
             <div className="space-y-1">
@@ -174,7 +156,7 @@ export default function ImageUploader({ id, currentValue, onChange, label }: Ima
               <p className="text-xs text-zinc-700 font-semibold">
                 Bild hierher ziehen oder <span className="text-[#0073aa] underline">durchsuchen</span>
               </p>
-              <p className="text-[10px] text-zinc-400 uppercase font-mono">PNG, Jpeg, WebP, SVG (Max. 10MB)</p>
+              <p className="text-[10px] text-zinc-400 uppercase font-mono">PNG, JPG, WEBP, SVG (Max. 5MB)</p>
             </div>
           )}
         </div>

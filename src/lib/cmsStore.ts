@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError } from './firebase';
+import { db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError, reconstructAllChunkedFieldsInObject } from './firebase';
 import { LandingPageData } from '../types';
 import { SERVICES, TOOLS, REFERENCES, PROCESS_STEPS } from '../data';
 
@@ -67,7 +67,8 @@ async function reconstructChunkedFields(pageData: LandingPageData): Promise<Land
     }
   }
 
-  return pageData;
+  // 3. Dynamically reconstruct all other generic chunked strings (images, videos, reels, etc.)
+  return reconstructAllChunkedFieldsInObject(pageData);
 }
 
 export const DEFAULT_PAGE_DATA: LandingPageData = {
@@ -307,10 +308,10 @@ export async function saveLandingPageData(data: LandingPageData): Promise<void> 
   const configDocRef = doc(db, 'landing_pages', 'main');
   try {
 
-    // 1. Check if the onepager is too large and needs chunking (> 50 KB characters)
+    // 1. Check if the onepager is too large and needs chunking (> 600 KB characters)
     const docUrl = dataCopy.onePager?.documentUrl || '';
-    if (docUrl.startsWith('data:') && docUrl.length > 50000) {
-      const chunkSize = 40000;
+    if (docUrl.startsWith('data:') && docUrl.length > 600000) {
+      const chunkSize = 500000;
       const chunks: string[] = [];
       for (let i = 0; i < docUrl.length; i += chunkSize) {
         chunks.push(docUrl.substring(i, i + chunkSize));
@@ -335,10 +336,10 @@ export async function saveLandingPageData(data: LandingPageData): Promise<void> 
       }
     }
 
-    // 2. Check if the footer PDF is too large and needs chunking (> 50 KB characters)
+    // 2. Check if the footer PDF is too large and needs chunking (> 600 KB characters)
     const footerPdfUrl = dataCopy.footer?.pdfUrl || '';
-    if (footerPdfUrl.startsWith('data:') && footerPdfUrl.length > 50000) {
-      const chunkSize = 40000;
+    if (footerPdfUrl.startsWith('data:') && footerPdfUrl.length > 600000) {
+      const chunkSize = 500000;
       const chunks: string[] = [];
       for (let i = 0; i < footerPdfUrl.length; i += chunkSize) {
         chunks.push(footerPdfUrl.substring(i, i + chunkSize));
