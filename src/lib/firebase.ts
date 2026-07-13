@@ -15,8 +15,70 @@ export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true
 }, firebaseConfig.firestoreDatabaseId);
 
+// Shared local in-memory cache to dynamically resolve "chunked://" URLs synchronously for images/videos/etc.
+export const chunkedUrlsCache: Record<string, string> = {};
+
+// Shared local in-memory cache for Blob URLs to avoid re-creating them and leaking memory
+export const objectUrlCache: Record<string, string> = {};
+
+function dataURItoBlob(dataURI: string): Blob {
+  const commaIndex = dataURI.indexOf(',');
+  if (commaIndex === -1) {
+    throw new Error('Invalid data URI format');
+  }
+  const header = dataURI.substring(0, commaIndex);
+  const data = dataURI.substring(commaIndex + 1);
+  
+  let byteString;
+  if (header.indexOf('base64') >= 0) {
+    byteString = atob(data);
+  } else {
+    byteString = decodeURIComponent(data);
+  }
+
+  const mimeMatch = header.match(/:(.*?);/);
+  const mimeString = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+
+  const ia = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+
+  return new Blob([ia], { type: mimeString });
+}
+
+export function resolveChunkedUrl(url: string | undefined, forceType?: 'video' | 'image' | 'pdf'): string | undefined {
+  if (!url) return url;
+  
+  let resolved: string = url;
+  if (url.startsWith('chunked://')) {
+    resolved = chunkedUrlsCache[url] || url;
+  }
+  
+  if (resolved && resolved.startsWith('data:')) {
+    const isVideo = forceType === 'video' || resolved.startsWith('data:video/') || resolved.includes('video/quicktime') || resolved.includes('video/mp4') || resolved.includes('video/webm') || resolved.includes('video/ogg');
+    const isPdf = forceType === 'pdf' || resolved.startsWith('data:application/pdf');
+    if (isVideo || isPdf) {
+      if (objectUrlCache[resolved]) {
+        return objectUrlCache[resolved];
+      }
+      try {
+        const blob = dataURItoBlob(resolved);
+        const objectUrl = URL.createObjectURL(blob);
+        objectUrlCache[resolved] = objectUrl;
+        return objectUrl;
+      } catch (e) {
+        console.error('Error converting base64 to Blob Object URL:', e);
+        return resolved;
+      }
+    }
+  }
+  
+  return resolved;
+}
+
 /**
- * Uploads a file to Firestore as chunks to support unlimited file sizes (up to 5MB / 20MB)
+ * Uploads a file to Firestore as chunks to support unlimited file sizes (up to 5MB / 25MB)
  * without needing Firebase Storage, which may not be provisioned/active.
  */
 export async function uploadFileAsChunks(
@@ -24,15 +86,39 @@ export async function uploadFileAsChunks(
   fileName: string,
   onProgress?: (percent: number) => void
 ): Promise<string> {
-  if (onProgress) {
-    onProgress(1); // Immediate indicator that processing has started
-  }
+  let displayProgress = 0;
+  let uploadFinished = false;
+
+  const updateProgress = (target: number) => {
+    if (!onProgress) return;
+    if (target > displayProgress) {
+      displayProgress = Math.min(100, Math.round(target));
+      onProgress(displayProgress);
+    }
+  };
+
+  updateProgress(1);
+
+  // Smooth visual progress driver to prevent the indicator from freezing
+  const progressTimer = setInterval(() => {
+    if (uploadFinished) return;
+    // Slow down as we approach 95%
+    if (displayProgress < 15) {
+      updateProgress(displayProgress + 2);
+    } else if (displayProgress < 60) {
+      updateProgress(displayProgress + 1);
+    } else if (displayProgress < 95) {
+      updateProgress(displayProgress + 0.5);
+    }
+  }, 100);
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
     reader.onload = async (event) => {
       try {
         if (typeof event.target?.result !== 'string') {
+          clearInterval(progressTimer);
           reject(new Error('Fehler bei der Dateiverarbeitung (FileReader result is not a string)'));
           return;
         }
@@ -40,8 +126,9 @@ export async function uploadFileAsChunks(
         const dataUrl = event.target.result;
         const totalLength = dataUrl.length;
         
-        // Use chunks of 150,000 characters (~150 KB) to ensure reliable delivery and frequent progress updates
-        const chunkSize = 150000;
+        // Use chunks of 800,000 characters (~800 KB) instead of 150,000 characters
+        // This is still safely under the 1MB Firestore document limit and reduces network writes by 5.3x
+        const chunkSize = 800000;
         const chunks: string[] = [];
         for (let i = 0; i < totalLength; i += chunkSize) {
           chunks.push(dataUrl.substring(i, i + chunkSize));
@@ -49,43 +136,89 @@ export async function uploadFileAsChunks(
         
         const assetId = `asset_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         
-        if (onProgress) {
-          onProgress(5); // Progress after chunking completes
-        }
+        updateProgress(15);
 
-        // Save metadata
-        await setDoc(doc(db, 'landing_page_chunks', assetId), {
-          totalChunks: chunks.length,
-          filename: fileName,
-          mimeType: file.type,
-          updatedAt: new Date().toISOString()
-        });
-        
-        if (onProgress) {
-          onProgress(10); // Progress after metadata is written
-        }
+        const withTimeoutLocal = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+          return Promise.race([
+            promise,
+            new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+          ]);
+        };
 
-        // Save individual chunks and update progress
-        let completedChunks = 0;
-        for (let i = 0; i < chunks.length; i++) {
-          await setDoc(doc(db, 'landing_page_chunks', `${assetId}_chunk_${i}`), {
-            chunk: chunks[i]
-          });
-          completedChunks++;
+        try {
+          // Use a tighter 15-second timeout for metadata so we don't leave the user hanging if offline
+          await withTimeoutLocal(
+            setDoc(doc(db, 'landing_page_chunks', assetId), {
+              totalChunks: chunks.length,
+              filename: fileName,
+              mimeType: file.type,
+              updatedAt: new Date().toISOString()
+            }),
+            15000
+          );
+        } catch (metadataErr) {
+          console.warn('Firebase upload failed or timed out. Falling back to local Base64 storage:', metadataErr);
+          uploadFinished = true;
+          clearInterval(progressTimer);
           if (onProgress) {
-            // Map the remaining progress from 10% to 100%
-            const percent = 10 + Math.round((completedChunks / chunks.length) * 90);
-            onProgress(percent > 100 ? 100 : percent);
+            onProgress(100);
           }
+          resolve(dataUrl);
+          return;
         }
         
+        updateProgress(20);
+
+        // Save individual chunks in parallel to drastically improve speed and reliability
+        let completedChunks = 0;
+        try {
+          const chunkPromises = chunks.map(async (chunk, i) => {
+            await withTimeoutLocal(
+              setDoc(doc(db, 'landing_page_chunks', `${assetId}_chunk_${i}`), {
+                chunk: chunk
+              }),
+              30000 // Generous 30 second timeout per chunk for slower connections
+            );
+            completedChunks++;
+            const realPercent = 20 + Math.round((completedChunks / chunks.length) * 78);
+            updateProgress(realPercent);
+          });
+          
+          await Promise.all(chunkPromises);
+        } catch (chunkErr) {
+          console.warn('Firebase chunk upload failed or timed out. Falling back to local Base64 storage:', chunkErr);
+          uploadFinished = true;
+          clearInterval(progressTimer);
+          if (onProgress) {
+            onProgress(100);
+          }
+          resolve(dataUrl);
+          return;
+        }
+        
+        uploadFinished = true;
+        clearInterval(progressTimer);
+        updateProgress(100);
+        
+        chunkedUrlsCache[`chunked://${assetId}`] = dataUrl;
+        try {
+          if (dataUrl.length < 1500000) {
+            localStorage.setItem(`cache_chunked://${assetId}`, dataUrl);
+          }
+        } catch (e) {
+          // Ignore localStorage quota errors
+        }
         resolve(`chunked://${assetId}`);
       } catch (err) {
+        uploadFinished = true;
+        clearInterval(progressTimer);
         reject(err);
       }
     };
     
     reader.onerror = () => {
+      uploadFinished = true;
+      clearInterval(progressTimer);
       reject(new Error('Datei konnte nicht gelesen werden.'));
     };
     
@@ -106,6 +239,24 @@ export async function uploadFileToStorage(
   return uploadFileAsChunks(file, fileName, onProgress);
 }
 
+async function getDocWithRetry(docRef: any, maxRetries = 3, timeoutMs = 15000): Promise<any> {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await Promise.race([
+        getDoc(docRef),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+      ]);
+    } catch (err) {
+      attempt++;
+      if (attempt >= maxRetries) {
+        throw err;
+      }
+      await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+    }
+  }
+}
+
 /**
  * Reconstructs a chunked string from Firestore chunks.
  */
@@ -114,8 +265,22 @@ export async function reconstructChunkedString(chunkedUrl: string): Promise<stri
     return chunkedUrl;
   }
   
+  if (chunkedUrlsCache[chunkedUrl]) {
+    return chunkedUrlsCache[chunkedUrl];
+  }
+
+  try {
+    const persisted = localStorage.getItem(`cache_${chunkedUrl}`);
+    if (persisted) {
+      chunkedUrlsCache[chunkedUrl] = persisted;
+      return persisted;
+    }
+  } catch (e) {
+    // Ignore localStorage errors
+  }
+  
   const assetId = chunkedUrl.replace('chunked://', '');
-  const metaSnap = await getDoc(doc(db, 'landing_page_chunks', assetId));
+  const metaSnap = await getDocWithRetry(doc(db, 'landing_page_chunks', assetId));
   
   if (!metaSnap.exists()) {
     throw new Error(`Chunk metadata not found for ${assetId}`);
@@ -128,7 +293,7 @@ export async function reconstructChunkedString(chunkedUrl: string): Promise<stri
   
   const chunkPromises = [];
   for (let i = 0; i < totalChunks; i++) {
-    chunkPromises.push(getDoc(doc(db, 'landing_page_chunks', `${assetId}_chunk_${i}`)));
+    chunkPromises.push(getDocWithRetry(doc(db, 'landing_page_chunks', `${assetId}_chunk_${i}`)));
   }
   
   const chunkSnaps = await Promise.all(chunkPromises);
@@ -137,6 +302,15 @@ export async function reconstructChunkedString(chunkedUrl: string): Promise<stri
     if (snap.exists()) {
       fullDataUrl += snap.data().chunk || '';
     }
+  }
+  
+  chunkedUrlsCache[chunkedUrl] = fullDataUrl;
+  try {
+    if (fullDataUrl.length < 1500000) {
+      localStorage.setItem(`cache_${chunkedUrl}`, fullDataUrl);
+    }
+  } catch (e) {
+    // Ignore localStorage quota errors
   }
   
   return fullDataUrl;

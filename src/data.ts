@@ -80,6 +80,19 @@ export const REFERENCES: ClientReference[] = [
       author: 'Claudia Fehrmann',
       role: 'Inhaberin Fehrmann Glas & Design',
     },
+    reelPosition: 'left',
+    showStats: true,
+    stats: {
+      aufrufe: '+ 270 %',
+      reichweite: '+ 2.000 %',
+      interaktion: '+ 9.000 %'
+    },
+    postImages: [
+      { imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' },
+      { imageUrl: 'https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' },
+      { imageUrl: 'https://images.unsplash.com/photo-1541123437800-1bb1317badc2?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' },
+      { imageUrl: 'https://images.unsplash.com/photo-1617806118233-18e1db207faf?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' }
+    ]
   },
   {
     name: 'Rodizio',
@@ -90,12 +103,32 @@ export const REFERENCES: ClientReference[] = [
       text: 'Frischer Grill-Spieß direkt an deinen Tisch! 🔥🥩 Unfassbare Geschmacksexplosion bei uns. Kommt vorbei! #rodizio #barbecue #foodie',
       author: 'Rodizio',
       role: 'Restaurant',
-    }
+    },
+    reelPosition: 'right',
+    showStats: false,
+    stats: {
+      aufrufe: '+ 180 %',
+      reichweite: '+ 1.200 %',
+      interaktion: '+ 5.400 %'
+    },
+    postImages: [
+      { imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&auto=format&fit=crop&q=70', instagramLink: 'https://www.instagram.com/reel/DZkp0a0AYJ_/' },
+      { imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop&q=70', instagramLink: 'https://www.instagram.com/reel/DZkp0a0AYJ_/' },
+      { imageUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&auto=format&fit=crop&q=70', instagramLink: 'https://www.instagram.com/reel/DZkp0a0AYJ_/' }
+    ]
   },
   {
     name: 'Deutsches Eck, Mallorca',
     status: 'klaerung',
     format: 'Klärung nächste Woche vor Ort',
+    reelPosition: 'left',
+    showStats: false,
+    stats: {
+      aufrufe: '+ 0 %',
+      reichweite: '+ 0 %',
+      interaktion: '+ 0 %'
+    },
+    postImages: []
   },
 ];
 

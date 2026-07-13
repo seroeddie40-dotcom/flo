@@ -21,12 +21,28 @@ export interface ClientReference {
   logoUrl?: string;
   mediaType?: 'image' | 'video' | 'none';
   reelLink?: string;
+  videoDisplayMode?: 'link' | 'embedded'; // 'link' = show Reel as clickable link/button, 'embedded' = embed directly as player (uploaded video or iframe)
   isSpotlight?: boolean;
   testimonial?: {
     text: string;
     author: string;
     role: string;
   };
+  reelPosition?: 'left' | 'right';
+  postImages?: {
+    imageUrl: string;
+    instagramLink: string;
+  }[];
+  showStats?: boolean;
+  stats?: {
+    aufrufe: string;
+    reichweite: string;
+    interaktion: string;
+  };
+  highlightReelTitle?: string;
+  highlightReelText?: string;
+  sichtbarkeitTitle?: string;
+  sichtbarkeitText?: string;
 }
 
 export interface ProcessStep {
@@ -65,6 +81,15 @@ export interface FooterConfig {
   pdfFilename?: string;
   imprintText?: string;
   privacyText?: string;
+  contactEyebrow?: string;
+  contactTitle?: string;
+  contactText?: string;
+  contactWaLabel?: string;
+  contactWaSubtext?: string;
+  contactEmailLabel?: string;
+  contactEmailSubtext?: string;
+  contactIgLabel?: string;
+  contactIgSubtext?: string;
 }
 
 export interface OnePagerStep {
@@ -110,6 +135,11 @@ export interface ColorConfig {
   brandDarkCardBrightness: number;
 }
 
+export interface AboutFeature {
+  title: string;
+  text: string;
+}
+
 export interface AboutSectionConfig {
   enabled: boolean;
   eyebrow?: string;
@@ -117,6 +147,11 @@ export interface AboutSectionConfig {
   text?: string;
   imageUrl?: string;
   imageEnabled?: boolean;
+  feature1Title?: string;
+  feature1Text?: string;
+  feature2Title?: string;
+  feature2Text?: string;
+  features?: AboutFeature[];
 }
 
 export interface TrustBlockConfig {
@@ -148,6 +183,12 @@ export interface LandingPageData {
     reichweite: string;
     interaktion: string;
     reelLink?: string;
+    highlightReelTitle?: string;
+    highlightReelText?: string;
+    sichtbarkeitTitle?: string;
+    sichtbarkeitText?: string;
+    videoType?: 'reel' | 'uploaded';
+    uploadedVideoUrl?: string;
   };
   calendly?: {
     calendlyUrl?: string;

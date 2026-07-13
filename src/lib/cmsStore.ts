@@ -14,13 +14,13 @@ async function reconstructChunkedFields(pageData: LandingPageData): Promise<Land
   // 1. OnePager chunk loading
   if (pageData.onePager?.documentUrl === 'chunked://onepager') {
     try {
-      const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'onepager')), 5000, 'offline');
+      const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'onepager')), 35000, 'offline');
       if (metaSnap.exists()) {
         const { totalChunks } = metaSnap.data();
         if (typeof totalChunks === 'number' && totalChunks > 0) {
           const chunkPromises = [];
           for (let i = 0; i < totalChunks; i++) {
-            chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${i}`)), 5000, 'offline'));
+            chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${i}`)), 35000, 'offline'));
           }
           const chunkSnaps = await Promise.all(chunkPromises);
           let fullBase64 = '';
@@ -42,13 +42,13 @@ async function reconstructChunkedFields(pageData: LandingPageData): Promise<Land
   // 2. Footer pdf chunk loading
   if (pageData.footer?.pdfUrl === 'chunked://footerpdf') {
     try {
-      const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'footerpdf')), 5000, 'offline');
+      const metaSnap = await withTimeout(getDoc(doc(db, 'landing_page_chunks', 'footerpdf')), 35000, 'offline');
       if (metaSnap.exists()) {
         const { totalChunks } = metaSnap.data();
         if (typeof totalChunks === 'number' && totalChunks > 0) {
           const chunkPromises = [];
           for (let i = 0; i < totalChunks; i++) {
-            chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `footerpdf_chunk_${i}`)), 5000, 'offline'));
+            chunkPromises.push(withTimeout(getDoc(doc(db, 'landing_page_chunks', `footerpdf_chunk_${i}`)), 35000, 'offline'));
           }
           const chunkSnaps = await Promise.all(chunkPromises);
           let fullBase64 = '';
@@ -94,7 +94,16 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     pdfUrl: '',
     pdfFilename: '',
     imprintText: '',
-    privacyText: ''
+    privacyText: '',
+    contactEyebrow: 'KONTAKT & DIALOG',
+    contactTitle: 'LASS UNS [ETWAS GROSSES] STARTEN',
+    contactText: 'Egal ob schnelles Feedback auf WhatsApp, klassische E-Mail oder ausführliche Nachricht – wähle einfach deinen bevorzugten Kanal aus. Ich melde mich innerhalb von 24 Stunden bei dir.',
+    contactWaLabel: 'WhatsApp Chat',
+    contactWaSubtext: 'Sende eine Frage direkt über WhatsApp',
+    contactEmailLabel: 'Klassische Nachricht',
+    contactEmailSubtext: 'Antwortgarantie unter 24 Stunden',
+    contactIgLabel: 'Social Media',
+    contactIgSubtext: 'Folge mir für nützliche Instagram-Hacks'
   },
   betweenSectionImage: {
     imageUrl: '',
@@ -155,7 +164,21 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     title: 'Wer steckt dahinter',
     text: 'Ich kenne beide Seiten: was Kunden wirklich überzeugt, und wie man das sichtbar macht. Deshalb arbeite ich ausschließlich mit Instagram, dafür richtig. Mein Tool-Stack: Canva Business, CapCut, Google Drive und Trello für die Organisation, dazu KI-gestützte Tools für Recherche und Konzeption.',
     imageEnabled: true,
-    imageUrl: ''
+    imageUrl: '',
+    feature1Title: 'Vertriebs-Fokus',
+    feature1Text: 'Seit 2004 im aktiven Vertrieb. Ich weiß genau, was Kunden zum Kaufen bewegt.',
+    feature2Title: 'Ergebnis-Garantie',
+    feature2Text: 'Keine nutzlosen Reichweiten-Tricks, sondern echte, messbare Ergebnisse.',
+    features: [
+      {
+        title: 'Vertriebs-Fokus',
+        text: 'Seit 2004 im aktiven Vertrieb. Ich weiß genau, was Kunden zum Kaufen bewegt.'
+      },
+      {
+        title: 'Ergebnis-Garantie',
+        text: 'Keine nutzlosen Reichweiten-Tricks, sondern echte, messbare Ergebnisse.'
+      }
+    ]
   },
   trustBlock: {
     title: 'Keine Schnupperangebote.',
@@ -168,7 +191,13 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     aufrufe: '+ 270 %',
     reichweite: '+ 2.000 %',
     interaktion: '+ 9.000 %',
-    reelLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/'
+    reelLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/',
+    highlightReelTitle: 'HIGHLIGHT-REEL',
+    highlightReelText: 'Dieses Reel demonstriert die faszinierende Ästhetik von handgefertigtem Glas und modernem Design. Klicke auf Play, um das Video zu starten, oder teste das Like-System!',
+    sichtbarkeitTitle: 'Sichtbarkeit & Reichweite',
+    sichtbarkeitText: 'Unsere datengetriebene Reels-Strategie sorgt für überproportionales Wachstum in der Zielgruppe. Die Zahlenwerte passen sich dynamisch an.',
+    videoType: 'reel',
+    uploadedVideoUrl: ''
   },
   calendly: {
     calendlyUrl: 'https://calendly.com/floriankusche',
@@ -196,7 +225,29 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
   }
 };
 
-function getLocalCache(): LandingPageData | null {
+function stripLargeStrings(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') {
+    // Strip Base64 or any extremely large strings (>20KB) to prevent exceeding localStorage quota (5MB)
+    if (obj.length > 20000) {
+      return '';
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => stripLargeStrings(item));
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      cleaned[key] = stripLargeStrings(obj[key]);
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+export function getLocalCache(): LandingPageData | null {
   try {
     const cached = localStorage.getItem('florian_cms_cache');
     if (cached) {
@@ -208,9 +259,10 @@ function getLocalCache(): LandingPageData | null {
   return null;
 }
 
-function setLocalCache(data: LandingPageData) {
+export function setLocalCache(data: LandingPageData) {
   try {
-    localStorage.setItem('florian_cms_cache', JSON.stringify(data));
+    const stripped = stripLargeStrings(data);
+    localStorage.setItem('florian_cms_cache', JSON.stringify(stripped));
   } catch (e) {
     console.error('Error writing florian_cms_cache to localStorage:', e);
   }
@@ -224,7 +276,7 @@ function setLocalCache(data: LandingPageData) {
 export async function loadLandingPageData(): Promise<LandingPageData> {
   try {
     const configDocRef = doc(db, 'landing_pages', 'main');
-    const docSnap = await withTimeout(getDoc(configDocRef), 5000, 'offline');
+    const docSnap = await withTimeout(getDoc(configDocRef), 35000, 'offline');
 
     if (docSnap.exists()) {
       const dbData = docSnap.data() as Partial<LandingPageData>;
@@ -298,18 +350,114 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
  * Saves/Publishes the landing page configuration to Firestore and saves it to local cache.
  */
 
+async function chunkAndUploadString(dataUrl: string): Promise<string> {
+  const totalLength = dataUrl.length;
+  // Use chunks of 800,000 characters (~800 KB) to optimize write count (fits safely in 1MB Firestore limit)
+  const chunkSize = 800000;
+  const chunks: string[] = [];
+  for (let i = 0; i < totalLength; i += chunkSize) {
+    chunks.push(dataUrl.substring(i, i + chunkSize));
+  }
+  
+  const assetId = `asset_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  
+  // Extract mimeType from data URL if possible
+  let mimeType = 'application/octet-stream';
+  const match = dataUrl.match(/^data:([^;]+);base64,/);
+  if (match) {
+    mimeType = match[1];
+  }
+
+  // Save metadata
+  await withTimeout(
+    setDoc(doc(db, 'landing_page_chunks', assetId), {
+      totalChunks: chunks.length,
+      mimeType,
+      updatedAt: new Date().toISOString()
+    }),
+    15000,
+    'offline'
+  );
+
+  // Save individual chunks in parallel for maximum performance and to avoid sequential timeouts
+  const chunkPromises = chunks.map((chunk, index) =>
+    withTimeout(
+      setDoc(doc(db, 'landing_page_chunks', `${assetId}_chunk_${index}`), { chunk }),
+      30000,
+      'offline'
+    )
+  );
+  await Promise.all(chunkPromises);
+
+  return `chunked://${assetId}`;
+}
+
+async function chunkAllLargeFieldsInObject(obj: any): Promise<any> {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    const newArr = [];
+    for (const item of obj) {
+      newArr.push(await chunkAllLargeFieldsInObject(item));
+    }
+    return newArr;
+  }
+
+  const newObj = {} as any;
+  for (const key of Object.keys(obj)) {
+    const value = obj[key];
+    if (typeof value === 'string' && value.startsWith('data:') && value.length > 30000) {
+      try {
+        newObj[key] = await chunkAndUploadString(value);
+      } catch (err) {
+        console.warn(`Failed to chunk and upload large field at key: ${key}. Falling back to inline representation.`, err);
+        // Fail-safe: if the base64 string is too large (> 600,000 characters) and chunking failed,
+        // we must not write it inline to the main Firestore document or it will exceed 1MB and crash the save.
+        if (value.length > 600000) {
+          console.warn(`Field ${key} is too large (${value.length} chars) to save inline in Firestore without chunking. Saving with placeholder to avoid Firestore crash.`);
+          newObj[key] = `failed-upload-placeholder:${value.substring(0, 100)}`;
+        } else {
+          newObj[key] = value;
+        }
+      }
+    } else if (value && typeof value === 'object') {
+      newObj[key] = await chunkAllLargeFieldsInObject(value);
+    } else {
+      newObj[key] = value;
+    }
+  }
+
+  return newObj;
+}
+
 export async function saveLandingPageData(data: LandingPageData): Promise<void> {
   const dataCopy = JSON.parse(JSON.stringify(data)) as LandingPageData;
   delete dataCopy.isFallback;
 
-  // Always update local cache first
-  setLocalCache(dataCopy);
+  // Always update local cache first with the complete un-chunked data
+  setLocalCache(data);
+
+  // Backup special fields so they aren't processed by the generic recursive chunker
+  const backupOnePagerUrl = dataCopy.onePager?.documentUrl;
+  const backupFooterPdfUrl = dataCopy.footer?.pdfUrl;
+  
+  if (dataCopy.onePager) dataCopy.onePager.documentUrl = '';
+  if (dataCopy.footer) dataCopy.footer.pdfUrl = '';
+
+  // Chunk all other large base64 data strings recursively (videos, references images, reels, etc.)
+  let processedData = await chunkAllLargeFieldsInObject(dataCopy);
+
+  // Restore backed up special fields
+  if (processedData.onePager) processedData.onePager.documentUrl = backupOnePagerUrl || '';
+  if (processedData.footer) processedData.footer.pdfUrl = backupFooterPdfUrl || '';
 
   const configDocRef = doc(db, 'landing_pages', 'main');
   try {
 
     // 1. Check if the onepager is too large and needs chunking (> 600 KB characters)
-    const docUrl = dataCopy.onePager?.documentUrl || '';
+    const docUrl = processedData.onePager?.documentUrl || '';
     if (docUrl.startsWith('data:') && docUrl.length > 600000) {
       const chunkSize = 500000;
       const chunks: string[] = [];
@@ -320,24 +468,27 @@ export async function saveLandingPageData(data: LandingPageData): Promise<void> 
       // Write chunks metadata
       await withTimeout(setDoc(doc(db, 'landing_page_chunks', 'onepager'), {
         totalChunks: chunks.length,
-        filename: dataCopy.onePager?.documentFilename || 'document',
+        filename: processedData.onePager?.documentFilename || 'document',
         updatedAt: new Date().toISOString()
-      }), 5000, 'offline');
+      }), 45000, 'offline');
 
-      // Write individual chunk documents
-      const chunkWrites = chunks.map((chunk, index) => 
-        withTimeout(setDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${index}`), { chunk }), 5000, 'offline')
-      );
-      await Promise.all(chunkWrites);
+      // Write individual chunk documents sequentially
+      for (let index = 0; index < chunks.length; index++) {
+        await withTimeout(
+          setDoc(doc(db, 'landing_page_chunks', `onepager_chunk_${index}`), { chunk: chunks[index] }),
+          45000,
+          'offline'
+        );
+      }
 
       // Update main reference to point to chunks
-      if (dataCopy.onePager) {
-        dataCopy.onePager.documentUrl = 'chunked://onepager';
+      if (processedData.onePager) {
+        processedData.onePager.documentUrl = 'chunked://onepager';
       }
     }
 
     // 2. Check if the footer PDF is too large and needs chunking (> 600 KB characters)
-    const footerPdfUrl = dataCopy.footer?.pdfUrl || '';
+    const footerPdfUrl = processedData.footer?.pdfUrl || '';
     if (footerPdfUrl.startsWith('data:') && footerPdfUrl.length > 600000) {
       const chunkSize = 500000;
       const chunks: string[] = [];
@@ -348,23 +499,26 @@ export async function saveLandingPageData(data: LandingPageData): Promise<void> 
       // Write chunks metadata
       await withTimeout(setDoc(doc(db, 'landing_page_chunks', 'footerpdf'), {
         totalChunks: chunks.length,
-        filename: dataCopy.footer?.pdfFilename || 'document',
+        filename: processedData.footer?.pdfFilename || 'document',
         updatedAt: new Date().toISOString()
-      }), 5000, 'offline');
+      }), 45000, 'offline');
 
-      // Write individual chunk documents
-      const chunkWrites = chunks.map((chunk, index) => 
-        withTimeout(setDoc(doc(db, 'landing_page_chunks', `footerpdf_chunk_${index}`), { chunk }), 5000, 'offline')
-      );
-      await Promise.all(chunkWrites);
+      // Write individual chunk documents sequentially
+      for (let index = 0; index < chunks.length; index++) {
+        await withTimeout(
+          setDoc(doc(db, 'landing_page_chunks', `footerpdf_chunk_${index}`), { chunk: chunks[index] }),
+          45000,
+          'offline'
+        );
+      }
 
       // Update main reference to point to chunks
-      if (dataCopy.footer) {
-        dataCopy.footer.pdfUrl = 'chunked://footerpdf';
+      if (processedData.footer) {
+        processedData.footer.pdfUrl = 'chunked://footerpdf';
       }
     }
 
-    await withTimeout(setDoc(configDocRef, dataCopy), 5000, 'offline');
+    await withTimeout(setDoc(configDocRef, processedData), 40000, 'offline');
   } catch (error: any) {
     handleFirestoreError(error, OperationType.WRITE, 'landing_pages/main');
   }

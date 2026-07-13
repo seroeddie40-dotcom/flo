@@ -1,10 +1,10 @@
 {
-  "projectId": "polar-fort-7mjvc",
-  "appId": "1:475838050167:web:80cfbfc8009e117a61bb72",
-  "apiKey": "AIzaSyAVvtx4jg_8e710-7R4E_nk9lX8cY9Qydg",
-  "authDomain": "polar-fort-7mjvc.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-158a77e9-3be3-42c4-a9a8-512a3e6d5433",
-  "storageBucket": "polar-fort-7mjvc.firebasestorage.app",
-  "messagingSenderId": "475838050167",
-  "measurementId": ""
+  "projectId": "florian-27344",
+  "appId": "1:418283522749:web:704447449bea32b85dc5d4",
+  "apiKey": "AIzaSyAsUbUkZtMo7fGh9cwqFuSN7onnJC-du5A",
+  "authDomain": "florian-27344.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "florian-27344.firebasestorage.app",
+  "messagingSenderId": "418283522749",
+  "measurementId": "G-C00KER88YP"
 }

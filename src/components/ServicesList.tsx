@@ -170,7 +170,7 @@ export default function ServicesList({
                   <span>HAUPTLEISTUNG — {pService.label}</span>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center relative z-10 pointer-events-none">
+                <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-start relative z-10 pointer-events-none">
                   {/* Icon section */}
                   <div className="p-4 bg-accent/15 rounded-2xl text-accent border-2 border-accent/30 shrink-0 group-hover:bg-accent/25 group-hover:border-accent transition-all duration-300 shadow-lg shadow-black/30">
                     <PrimaryIcon className="w-10 h-10 md:w-12 md:h-12" />
@@ -201,7 +201,7 @@ export default function ServicesList({
                     </div>
                   </div>
 
-                  <div className="w-full lg:w-auto shrink-0 pt-4 lg:pt-0 pointer-events-auto">
+                  <div className="w-full lg:w-auto shrink-0 pt-4 lg:pt-0 pointer-events-auto lg:self-end lg:mb-[60px]">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

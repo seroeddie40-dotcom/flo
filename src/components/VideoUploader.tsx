@@ -1,33 +1,33 @@
 import React, { useState, useRef } from 'react';
-import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, Film, Loader2 } from 'lucide-react';
 import { uploadFileToStorage, resolveChunkedUrl } from '../lib/firebase';
 
-interface ImageUploaderProps {
+interface VideoUploaderProps {
   id: string;
   currentValue: string | undefined;
   onChange: (value: string) => void;
   label?: string;
 }
 
-export default function ImageUploader({ id, currentValue, onChange, label }: ImageUploaderProps) {
+export default function VideoUploader({ id, currentValue, onChange, label }: VideoUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Enforce max 5 MB as requested by the user
-  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+  // Enforce max 20 MB for videos since they are larger
+  const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 
   const processFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setErrorMessage('Bitte wähle eine gültige Bilddatei (PNG, JPG, WEBP, etc.)');
+    if (!file.type.startsWith('video/')) {
+      setErrorMessage('Bitte wähle eine gültige Videodatei (MP4, WEBM, MOV, etc.)');
       return;
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
-      setErrorMessage(`Bild ist zu groß (${sizeInMb} MB). Die maximale Dateigröße für Bilder beträgt 5 MB.`);
+      setErrorMessage(`Video ist zu groß (${sizeInMb} MB). Die maximale Dateigröße für Videos beträgt 20 MB.`);
       return;
     }
 
@@ -38,14 +38,14 @@ export default function ImageUploader({ id, currentValue, onChange, label }: Ima
     try {
       const downloadUrl = await uploadFileToStorage(
         file,
-        'images',
+        'videos',
         file.name,
         (progress) => setUploadProgress(progress)
       );
       onChange(downloadUrl);
       setIsProcessing(false);
     } catch (err: any) {
-      console.error('Firebase Storage upload failed:', err);
+      console.error('Firebase Storage video upload failed:', err);
       setErrorMessage('Upload fehlgeschlagen. Bitte versuche es erneut.');
       setIsProcessing(false);
     }
@@ -85,41 +85,43 @@ export default function ImageUploader({ id, currentValue, onChange, label }: Ima
   return (
     <div className="space-y-2">
       {label && <label className="block text-zinc-600 font-bold mb-1 text-xs">{label}</label>}
-      <div id={`image-uploader-container-${id}`} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        {/* Preview image */}
+      <div id={`video-uploader-container-${id}`} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        {/* Preview video */}
         <div 
-          id={`image-uploader-preview-box-${id}`} 
+          id={`video-uploader-preview-box-${id}`} 
           className="relative w-24 h-24 rounded-lg bg-zinc-100 border border-zinc-200 flex-shrink-0 flex items-center justify-center overflow-hidden group shadow-inner"
         >
           {currentValue ? (
             <>
-              <img 
+              <video 
                 src={resolveChunkedUrl(currentValue)} 
-                alt="Vorschau" 
                 className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
+                muted
+                playsInline
+                loop
+                autoPlay
               />
               <button
-                id={`image-uploader-remove-btn-${id}`}
+                id={`video-uploader-remove-btn-${id}`}
                 type="button"
                 onClick={handleRemove}
-                className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 hover:scale-110 active:scale-95 transition-all text-xs cursor-pointer shadow"
-                title="Bild löschen"
+                className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 hover:scale-110 active:scale-95 transition-all text-xs cursor-pointer shadow z-10"
+                title="Video löschen"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center text-zinc-400">
-              <ImageIcon className="w-6 h-6 mb-1" />
-              <span className="text-[10px] uppercase font-mono">Kein Bild</span>
+              <Film className="w-6 h-6 mb-1" />
+              <span className="text-[10px] uppercase font-mono">Kein Video</span>
             </div>
           )}
         </div>
 
         {/* Drag & Drop Area / Click Selector */}
         <div
-          id={`image-uploader-dragzone-${id}`}
+          id={`video-uploader-dragzone-${id}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -135,7 +137,7 @@ export default function ImageUploader({ id, currentValue, onChange, label }: Ima
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept="image/*"
+            accept="video/*"
             className="hidden"
           />
 
@@ -154,17 +156,15 @@ export default function ImageUploader({ id, currentValue, onChange, label }: Ima
             <div className="space-y-1">
               <Upload className="w-5 h-5 mx-auto text-zinc-400" />
               <p className="text-xs text-zinc-700 font-semibold">
-                Bild hierher ziehen oder <span className="text-[#0073aa] underline">durchsuchen</span>
+                Video hierher ziehen oder <span className="text-[#0073aa] underline">durchsuchen</span>
               </p>
-              <p className="text-[10px] text-zinc-400 uppercase font-mono">PNG, JPG, WEBP, SVG (Max. 5MB)</p>
+              <p className="text-[10px] text-zinc-400 uppercase font-mono">MP4, WEBM, MOV (Max. 25MB)</p>
             </div>
           )}
         </div>
       </div>
       {errorMessage && (
-        <p className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
-          <span>⚠️ {errorMessage}</span>
-        </p>
+        <p className="text-xs text-red-600 font-semibold">{errorMessage}</p>
       )}
     </div>
   );

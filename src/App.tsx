@@ -16,6 +16,7 @@ import AdminBackend from './components/AdminBackend';
 import WhatsAppPopup from './components/WhatsAppPopup';
 
 import { loadLandingPageData, subscribeLandingPageData } from './lib/cmsStore';
+import { resolveChunkedUrl } from './lib/firebase';
 import { LandingPageData } from './types';
 import { adjustBrightness } from './lib/colorUtils';
 
@@ -286,7 +287,7 @@ export default function App() {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.4 }}
-                  src={pageData.betweenSectionImage.imageUrl}
+                  src={resolveChunkedUrl(pageData.betweenSectionImage.imageUrl)}
                   alt="Florian Kusche Foto"
                   className={`object-cover shadow-2xl border border-brand-dark-card/40 ${
                     pageData.betweenSectionImage.borderRadius === 'full' 
@@ -406,7 +407,7 @@ export default function App() {
       {/* 12. Floating WhatsApp Interactive Popup Widget */}
       <WhatsAppPopup 
         phone={pageData?.footer?.phone} 
-        avatarUrl={pageData?.betweenSectionImage?.imageUrl || pageData?.contactImage?.imageUrl} 
+        avatarUrl={resolveChunkedUrl(pageData?.betweenSectionImage?.imageUrl || pageData?.contactImage?.imageUrl)} 
       />
 
     </div>

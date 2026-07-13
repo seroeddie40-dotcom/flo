@@ -1,11 +1,14 @@
 import { motion } from 'motion/react';
 import { AboutSectionConfig } from '../types';
-import { User, ShieldCheck, HeartHandshake } from 'lucide-react';
+import { User, ShieldCheck, HeartHandshake, Sparkles, Star, CheckCircle } from 'lucide-react';
+import { resolveChunkedUrl } from '../lib/firebase';
 
 interface AboutSectionProps {
   about?: AboutSectionConfig;
   defaultPortraitUrl?: string;
 }
+
+const iconsList = [ShieldCheck, HeartHandshake, Sparkles, Star, CheckCircle];
 
 export default function AboutSection({ about, defaultPortraitUrl }: AboutSectionProps) {
   // Use config values or fallbacks
@@ -13,9 +16,21 @@ export default function AboutSection({ about, defaultPortraitUrl }: AboutSection
   const eyebrow = about?.eyebrow || 'WER STECKT DAHINTER';
   const title = about?.title || 'Seit 2004 im Vertrieb. Seit 2017 selbstständig.';
   const text = about?.text || 'Seit 2004 im Vertrieb, seit 2017 selbstständig. Ich kenne beide Seiten: was Kunden wirklich überzeugt, und wie man das sichtbar macht. Deshalb arbeite ich ausschließlich mit Instagram, dafür richtig. Mein Tool-Stack: Canva Business, CapCut, Google Drive und Trello für die Organisation, dazu KI-gestützte Tools für Recherche und Konzeption.';
+  const feature1Title = about?.feature1Title || 'Vertriebs-Fokus';
+  const feature1Text = about?.feature1Text || 'Seit 2004 im aktiven Vertrieb. Ich weiß genau, was Kunden zum Kaufen bewegt.';
+  const feature2Title = about?.feature2Title || 'Ergebnis-Garantie';
+  const feature2Text = about?.feature2Text || 'Keine nutzlosen Reichweiten-Tricks, sondern echte, messbare Ergebnisse.';
   
   const imageUrl = about?.imageUrl || defaultPortraitUrl || '';
   const isImageEnabled = about?.imageEnabled !== false && !!imageUrl;
+
+  // Features array
+  const displayFeatures = about?.features && about.features.length > 0 
+    ? about.features 
+    : [
+        { title: feature1Title, text: feature1Text },
+        { title: feature2Title, text: feature2Text }
+      ];
 
   if (!isEnabled) return null;
 
@@ -43,7 +58,7 @@ export default function AboutSection({ about, defaultPortraitUrl }: AboutSection
                 <div className="absolute -inset-2 bg-gradient-to-r from-accent to-[#014e7a]/40 rounded-2xl opacity-30 blur-lg group-hover:opacity-40 transition-all"></div>
                 
                 <img 
-                  src={imageUrl} 
+                  src={resolveChunkedUrl(imageUrl)} 
                   alt="Portrait Florian Kusche" 
                   className="relative object-cover w-72 h-96 sm:w-80 sm:h-[420px] rounded-2xl border border-[#014e7a]/30 shadow-2xl filter brightness-95 contrast-105"
                   referrerPolicy="no-referrer"
@@ -83,25 +98,20 @@ export default function AboutSection({ about, defaultPortraitUrl }: AboutSection
 
             {/* Micro bento highlights */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 ${!isImageEnabled && 'max-w-2xl mx-auto'}`}>
-              <div className="bg-brand-dark/40 border border-[#014e7a]/30 p-5 rounded-xl flex items-start gap-4 text-left">
-                <div className="p-2 bg-accent/10 rounded-lg text-accent shrink-0">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-display font-bold text-white text-xs uppercase tracking-wider">Vertriebs-Fokus</h4>
-                  <p className="text-[11px] text-[#cce9ff]/75 mt-1 leading-relaxed">Seit 2004 im aktiven Vertrieb. Ich weiß genau, was Kunden zum Kaufen bewegt.</p>
-                </div>
-              </div>
-
-              <div className="bg-brand-dark/40 border border-[#014e7a]/30 p-5 rounded-xl flex items-start gap-4 text-left">
-                <div className="p-2 bg-accent/10 rounded-lg text-accent shrink-0">
-                  <HeartHandshake className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-display font-bold text-white text-xs uppercase tracking-wider">Ergebnis-Garantie</h4>
-                  <p className="text-[11px] text-[#cce9ff]/75 mt-1 leading-relaxed">Keine nutzlosen Reichweiten-Tricks, sondern echte, messbare Ergebnisse.</p>
-                </div>
-              </div>
+              {displayFeatures.map((feat, idx) => {
+                const IconComponent = iconsList[idx % iconsList.length];
+                return (
+                  <div key={idx} className="bg-brand-dark/40 border border-[#014e7a]/30 p-5 rounded-xl flex items-start gap-4 text-left">
+                    <div className="p-2 bg-accent/10 rounded-lg text-accent shrink-0">
+                      <IconComponent className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-display font-bold text-white text-xs uppercase tracking-wider">{feat.title}</h4>
+                      <p className="text-[11px] text-[#cce9ff]/75 mt-1 leading-relaxed">{feat.text}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
           </div>

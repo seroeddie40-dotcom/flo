@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError, uploadFileToStorage } from '../lib/firebase';
-import { loadLandingPageData, saveLandingPageData, DEFAULT_PAGE_DATA } from '../lib/cmsStore';
+import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError, uploadFileToStorage, resolveChunkedUrl } from '../lib/firebase';
+import { loadLandingPageData, saveLandingPageData, DEFAULT_PAGE_DATA, setLocalCache } from '../lib/cmsStore';
 import { LandingPageData, Service, Tool, ClientReference, ProcessStep, ColorConfig } from '../types';
 import ImageUploader from './ImageUploader';
 import DocumentUploader from './DocumentUploader';
+import VideoUploader from './VideoUploader';
 import { 
   Layout, 
   Layers, 
@@ -40,7 +41,8 @@ import {
   Trash,
   ChevronDown,
   ChevronUp,
-  Calendar
+  Calendar,
+  Instagram
 } from 'lucide-react';
 import { adjustBrightness } from '../lib/colorUtils';
 
@@ -81,15 +83,14 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
   const [isLoadingCms, setIsLoadingCms] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [backendPhoneScale, setBackendPhoneScale] = useState<number>(1.0);
+  const [isRetryingConnection, setIsRetryingConnection] = useState(false);
 
   // Active WP Sidebar Tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'hero' | 'about' | 'onepager' | 'leistungen' | 'tools' | 'referenzen' | 'calendly' | 'prozess' | 'contact' | 'colors' | 'footer' | 'credentials'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'hero' | 'about' | 'onepager' | 'leistungen' | 'referenzen' | 'calendly' | 'prozess' | 'contact' | 'colors' | 'footer' | 'credentials'>('dashboard');
 
   // Sub-editor state for edit popups
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isAddingService, setIsAddingService] = useState(false);
-  const [editingTool, setEditingTool] = useState<Tool | null>(null);
-  const [isAddingTool, setIsAddingTool] = useState(false);
   const [expandedReferences, setExpandedReferences] = useState<Record<number, boolean>>({ 0: true });
   const [savingReferenceIdx, setSavingReferenceIdx] = useState<number | null>(null);
   const [savedReferenceIdx, setSavedReferenceIdx] = useState<number | null>(null);
@@ -110,7 +111,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
   const getAdminCredentials = async () => {
     try {
       const docRef = doc(db, 'admin_credentials', 'settings');
-      const docSnap = await withTimeout(getDoc(docRef), 3000, 'offline');
+      const docSnap = await withTimeout(getDoc(docRef), 15000, 'offline');
       if (docSnap.exists()) {
         const d = docSnap.data();
         return {
@@ -123,7 +124,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
           password: 'WunderBaum188!'
         };
         try {
-          await withTimeout(setDoc(docRef, defaultCreds), 3000, 'offline');
+          await withTimeout(setDoc(docRef, defaultCreds), 15000, 'offline');
         } catch (setErr: any) {
           if (setErr?.code === 'permission-denied' || setErr?.message?.includes('permission')) {
             handleFirestoreError(setErr, OperationType.WRITE, 'admin_credentials/settings');
@@ -251,7 +252,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
         payload.password = creds.password;
       }
 
-      await withTimeout(setDoc(docRef, payload), 3000, 'offline');
+      await withTimeout(setDoc(docRef, payload), 15000, 'offline');
 
       // Successfully updated! Update local states and storage
       setUser({ email: payload.email, uid: 'admin-session' });
@@ -299,12 +300,31 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
       // Fallback: Save to local cache first to ensure zero data loss
       const cleanData = JSON.parse(JSON.stringify(cmsData)) as LandingPageData;
       delete cleanData.isFallback;
-      localStorage.setItem('florian_cms_cache', JSON.stringify(cleanData));
+      setLocalCache(cleanData);
       
       // Enter fallback mode immediately to display proper notice in the admin panel
       setCmsData({ ...cmsData, isFallback: true });
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 6000);
+    }
+  };
+
+  // Check connection manually to restore online mode
+  const handleRetryConnection = async () => {
+    setIsRetryingConnection(true);
+    try {
+      const data = await loadLandingPageData();
+      if (!data.isFallback) {
+        setCmsData(data);
+        alert('Verbindung zur Live-Datenbank erfolgreich wiederhergestellt! Du bist wieder online.');
+      } else {
+        alert('Die Live-Datenbank ist weiterhin nicht erreichbar. Bitte überprüfe deine Internetverbindung oder versuche es später noch einmal.');
+      }
+    } catch (err) {
+      console.error('Error retrying connection:', err);
+      alert('Die Live-Datenbank ist weiterhin nicht erreichbar.');
+    } finally {
+      setIsRetryingConnection(false);
     }
   };
 
@@ -677,32 +697,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
     });
   };
 
-  // Tools actions
-  const saveToolEdit = () => {
-    if (!cmsData || !editingTool) return;
-    const tools = cmsData.tools.map(t => t.name === editingTool.name ? editingTool : t);
-    setCmsData({ ...cmsData, tools });
-    setEditingTool(null);
-  };
 
-  const addNewTool = (newT: Tool) => {
-    if (!cmsData) return;
-    setCmsData({
-      ...cmsData,
-      tools: [...cmsData.tools, newT]
-    });
-    setIsAddingTool(false);
-  };
-
-  const deleteTool = (name: string) => {
-    if (!cmsData) return;
-    if (window.confirm('Möchtest du dieses Tool wirklich löschen?')) {
-      setCmsData({
-        ...cmsData,
-        tools: cmsData.tools.filter(t => t.name !== name)
-      });
-    }
-  };
 
   // Process timeline actions
   const updateProcessStep = (idx: number, field: 'title' | 'description', value: string) => {
@@ -715,22 +710,21 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
   // References actions
   const updateReference = (idx: number, updatedRef: Partial<ClientReference>) => {
     if (!cmsData) return;
-    const references = [...cmsData.references];
-    const originalRef = references[idx] || { name: '', status: 'freigegeben', format: '' };
-    
-    // Testimonial specific editing logic
-    if (updatedRef.testimonial) {
-      originalRef.testimonial = {
-        ...(originalRef.testimonial || { text: '', author: '', role: '' }),
-        ...updatedRef.testimonial
-      };
-    }
-
-    references[idx] = {
-      ...originalRef,
-      ...updatedRef,
-      testimonial: updatedRef.testimonial ? originalRef.testimonial : originalRef.testimonial
-    };
+    const references = cmsData.references.map((ref, i) => {
+      if (i !== idx) return ref;
+      
+      const newRef = { ...ref, ...updatedRef };
+      
+      // If testimonial is being updated, merge it immutably
+      if (updatedRef.testimonial) {
+        newRef.testimonial = {
+          ...(ref.testimonial || { text: '', author: '', role: '' }),
+          ...updatedRef.testimonial
+        };
+      }
+      
+      return newRef;
+    });
 
     setCmsData({ ...cmsData, references });
   };
@@ -748,7 +742,15 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
         text: '',
         author: '',
         role: ''
-      }
+      },
+      reelPosition: 'left',
+      showStats: false,
+      stats: {
+        aufrufe: '+ 0 %',
+        reichweite: '+ 0 %',
+        interaktion: '+ 0 %'
+      },
+      postImages: []
     });
     setCmsData({ ...cmsData, references });
     setExpandedReferences(prev => ({
@@ -792,6 +794,12 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
     setSavingReferenceIdx(idx);
     try {
       await saveLandingPageData(cmsData);
+      
+      // If successful, clear the isFallback flag in our active state
+      if (cmsData.isFallback) {
+        setCmsData(prev => prev ? { ...prev, isFallback: false } : null);
+      }
+      
       setSavedReferenceIdx(idx);
       setTimeout(() => {
         setSavedReferenceIdx(null);
@@ -964,7 +972,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
               }`}
             >
               <PenTool className="w-4 h-4 shrink-0" />
-              <span>Customizer - Hero</span>
+              <span>Hero Sektion</span>
             </button>
 
             <button
@@ -977,8 +985,6 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
               <span>Über mich (Portrait)</span>
             </button>
 
-
-
             <button
               onClick={() => setActiveTab('leistungen')}
               className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
@@ -990,16 +996,6 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
             </button>
 
             <button
-              onClick={() => setActiveTab('tools')}
-              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
-                activeTab === 'tools' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
-              }`}
-            >
-              <Wrench className="w-4 h-4 shrink-0" />
-              <span>Tools (Werkzeuge)</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('referenzen')}
               className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
                 activeTab === 'referenzen' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
@@ -1007,16 +1003,6 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
             >
               <MessageCircle className="w-4 h-4 shrink-0" />
               <span>Referenzen (Kunden)</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('calendly')}
-              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
-                activeTab === 'calendly' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
-              }`}
-            >
-              <Calendar className="w-4 h-4 shrink-0" />
-              <span>Calendly Integration</span>
             </button>
 
             <button
@@ -1036,7 +1022,37 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
               }`}
             >
               <Settings className="w-4 h-4 shrink-0" />
-              <span>Einstellungen - Kontakt</span>
+              <span>Kontakt Sektion</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('onepager')}
+              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
+                activeTab === 'onepager' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
+              }`}
+            >
+              <FileText className="w-4 h-4 shrink-0" />
+              <span>One-Pager Sektion</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('footer')}
+              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
+                activeTab === 'footer' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
+              }`}
+            >
+              <Globe className="w-4 h-4 shrink-0" />
+              <span>Footer & Rechtliches</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('calendly')}
+              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
+                activeTab === 'calendly' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
+              }`}
+            >
+              <Calendar className="w-4 h-4 shrink-0" />
+              <span>Calendly Integration</span>
             </button>
 
             <button
@@ -1047,16 +1063,6 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
             >
               <Palette className="w-4 h-4 shrink-0" />
               <span>Design & Farbregler</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('footer')}
-              className={`w-full text-left px-5 py-3 text-sm font-medium flex items-center gap-3 transition-colors ${
-                activeTab === 'footer' ? 'bg-[#0073aa] text-white border-l-4 border-accent' : 'text-zinc-300 hover:bg-[#32373c] hover:text-[#ffcc00]'
-              }`}
-            >
-              <Layers className="w-4 h-4 shrink-0" />
-              <span>Footer</span>
             </button>
 
             <button
@@ -1087,15 +1093,14 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                 {activeTab === 'dashboard' && 'Dashboard'}
                 {activeTab === 'hero' && 'Landing-Page-Hero bearbeiten'}
                 {activeTab === 'about' && 'Über mich ("Wer steckt dahinter")'}
-                {activeTab === 'onepager' && 'One-Pager & Dokumentenupload verwalten'}
                 {activeTab === 'leistungen' && 'Leistungsspektrum konfigurieren'}
-                {activeTab === 'tools' && 'Ihre Partner-Tools verwalten'}
                 {activeTab === 'referenzen' && 'Kundenstimmen & Referenzen'}
-                {activeTab === 'calendly' && 'Calendly Integration & Buchungen'}
                 {activeTab === 'prozess' && 'Ablaufschritte bearbeiten'}
                 {activeTab === 'contact' && 'Kontakt & Footer-Metadaten'}
-                {activeTab === 'colors' && 'Farben & Helligkeit anpassen'}
+                {activeTab === 'onepager' && 'One-Pager & Dokumentenupload verwalten'}
                 {activeTab === 'footer' && 'Footer & rechtliche Inhalte verwalten'}
+                {activeTab === 'calendly' && 'Calendly Integration & Buchungen'}
+                {activeTab === 'colors' && 'Farben & Helligkeit anpassen'}
                 {activeTab === 'credentials' && 'Admin-Zugangsdaten bearbeiten'}
                 <span className="text-xs bg-zinc-200 text-zinc-600 border border-zinc-300 px-2 py-0.5 rounded font-mono font-medium">v1.1</span>
               </h2>
@@ -1134,6 +1139,26 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                 <span className="text-xs text-amber-800 leading-relaxed block mt-1">
                   <strong>Schutz vor Datenverlust aktiv:</strong> Um deine echten Cloud-Daten zu sichern, haben wir das Überschreiben der Cloud blockiert. Wenn du jetzt Änderungen vornimmst und auf <strong>&bdquo;Veröffentlichen&ldquo;</strong> klickst, speichern wir deine Anpassungen sicher in deinem lokalen Browser-Cache, anstatt die Cloud zu überschreiben. Sobald die Verbindung wiederhergestellt ist, wird dein cloud-gespeicherter Content automatisch wieder synchronisiert!
                 </span>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRetryConnection}
+                    disabled={isRetryingConnection}
+                    className="py-1.5 px-3 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-bold text-xs rounded shadow transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isRetryingConnection ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Verbindung wird geprüft...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Activity className="w-3.5 h-3.5 animate-pulse" />
+                        <span>Verbindung jetzt prüfen & wiederherstellen</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1165,7 +1190,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
 
           {/* MOBILE TABS SLIDER BAR */}
           <div className="flex md:hidden bg-[#23282d] p-1.5 rounded-lg overflow-x-auto gap-1 mb-6 text-xs text-white">
-            {(['dashboard', 'hero', 'leistungen', 'tools', 'referenzen', 'calendly', 'prozess', 'contact', 'colors', 'credentials'] as const).map(tab => (
+            {(['dashboard', 'hero', 'about', 'leistungen', 'referenzen', 'prozess', 'contact', 'onepager', 'footer', 'calendly', 'colors', 'credentials'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1173,7 +1198,17 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                   activeTab === tab ? 'bg-[#0073aa] text-white font-bold' : 'text-zinc-300'
                 }`}
               >
-                {tab === 'credentials' ? 'Zugang' : tab === 'colors' ? 'Farben' : tab === 'calendly' ? 'Calendly' : tab}
+                {tab === 'credentials' ? 'Zugang' : 
+                 tab === 'colors' ? 'Farben' : 
+                 tab === 'calendly' ? 'Calendly' : 
+                 tab === 'about' ? 'Über mich' :
+                 tab === 'leistungen' ? 'Leistungen' :
+                 tab === 'referenzen' ? 'Referenzen' :
+                 tab === 'prozess' ? 'Zusammenarbeit' :
+                 tab === 'contact' ? 'Kontakt' :
+                 tab === 'onepager' ? 'One-Pager' :
+                 tab === 'footer' ? 'Footer' :
+                 tab}
               </button>
             ))}
           </div>
@@ -1567,6 +1602,108 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                             onChange={(e) => updateAboutField('text', e.target.value)}
                             className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 leading-relaxed font-sans"
                           />
+                        </div>
+
+                        {/* Highlights (VERTRIEBS-FOKUS & ERGEBNIS-GARANTIE) */}
+                        <div className="h-[1px] bg-zinc-200"></div>
+
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider mb-2">
+                            Punkte / Highlights unter dem Text (z.B. Vertriebs-Fokus, Ergebnis-Garantie)
+                          </h4>
+                          <p className="text-xs text-zinc-500 mb-4">
+                            Passe die Punkte an, füge neue Punkte hinzu oder lösche nicht mehr benötigte. Sie werden als Karten unter dem Text angezeigt.
+                          </p>
+
+                          <div className="space-y-4">
+                            {(() => {
+                              const feats = cmsData.about?.features || [
+                                {
+                                  title: cmsData.about?.feature1Title || 'Vertriebs-Fokus',
+                                  text: cmsData.about?.feature1Text || 'Seit 2004 im aktiven Vertrieb. Ich weiß genau, was Kunden zum Kaufen bewegt.'
+                                },
+                                {
+                                  title: cmsData.about?.feature2Title || 'Ergebnis-Garantie',
+                                  text: cmsData.about?.feature2Text || 'Keine nutzlosen Reichweiten-Tricks, sondern echte, messbare Ergebnisse.'
+                                }
+                              ];
+
+                              return (
+                                <>
+                                  {feats.map((feat, fIdx) => (
+                                    <div key={fIdx} className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg space-y-3 relative">
+                                      {/* Delete button */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newFeats = feats.filter((_, idx) => idx !== fIdx);
+                                          updateAboutField('features', newFeats);
+                                        }}
+                                        className="absolute top-3 right-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors text-xs font-bold flex items-center gap-1 cursor-pointer border-0 bg-transparent"
+                                        title="Punkt löschen"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span>Löschen</span>
+                                      </button>
+
+                                      <div className="max-w-[80%]">
+                                        <span className="font-mono text-[10px] font-bold text-[#0073aa] bg-[#0073aa]/10 px-2 py-0.5 rounded uppercase">
+                                          Punkt {fIdx + 1}
+                                        </span>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 gap-3 pt-1">
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">Titel</label>
+                                          <input
+                                            type="text"
+                                            value={feat.title}
+                                            onChange={(e) => {
+                                              const newFeats = [...feats];
+                                              newFeats[fIdx] = { ...newFeats[fIdx], title: e.target.value };
+                                              updateAboutField('features', newFeats);
+                                            }}
+                                            placeholder="z.B. Vertriebs-Fokus"
+                                            className="w-full p-2 border border-zinc-300 rounded text-sm text-zinc-900 bg-white font-semibold focus:outline-none focus:ring-1 focus:ring-[#0073aa]"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">Text / Beschreibung</label>
+                                          <textarea
+                                            rows={2}
+                                            value={feat.text}
+                                            onChange={(e) => {
+                                              const newFeats = [...feats];
+                                              newFeats[fIdx] = { ...newFeats[fIdx], text: e.target.value };
+                                              updateAboutField('features', newFeats);
+                                            }}
+                                            placeholder="Beschreibung..."
+                                            className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white focus:outline-none focus:ring-1 focus:ring-[#0073aa]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newFeats = [
+                                        ...feats,
+                                        { title: 'Neuer Punkt', text: 'Hier die Beschreibung für den neuen Punkt eingeben.' }
+                                      ];
+                                      updateAboutField('features', newFeats);
+                                    }}
+                                    className="w-full py-2.5 bg-white hover:bg-zinc-50 border border-dashed border-zinc-300 text-zinc-700 text-xs font-bold rounded flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                                  >
+                                    <Plus className="w-4 h-4 text-[#0073aa]" />
+                                    <span>Neuen Punkt hinzufügen</span>
+                                  </button>
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
 
                         <div className="h-[1px] bg-zinc-200"></div>
@@ -2169,129 +2306,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                   );
                 })()}
 
-                {/* 4. TAB: TOOLS */}
-                {activeTab === 'tools' && (
-                  <div className="space-y-6 pb-12 font-sans">
-                    
-                    {/* Add tool button */}
-                    <div className="flex justify-between items-center bg-white border border-zinc-200 p-4 rounded-xl shadow-sm">
-                      <span className="text-sm font-semibold text-zinc-700">Verwalte dein technisches Arsenal auf der Landing Page</span>
-                      <button
-                        onClick={() => setIsAddingTool(true)}
-                        className="py-1.5 px-4 bg-[#0073aa] hover:bg-[#005177] text-white text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer shadow-sm"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Tool hinzufügen</span>
-                      </button>
-                    </div>
 
-                    <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden text-zinc-800">
-                      <table className="w-full text-left text-xs sm:text-sm border-collapse">
-                        <thead>
-                          <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 font-bold uppercase tracking-wider text-[10px]">
-                            <th className="p-4">Name</th>
-                            <th className="p-4">Beschreibung</th>
-                            <th className="p-4">Icon Name</th>
-                            <th className="p-4 text-right">Aktionen</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-200">
-                          {cmsData.tools.map((tool) => (
-                            <tr key={tool.name} className="hover:bg-zinc-50">
-                              <td className="p-4 font-bold text-[#0073aa]">{tool.name}</td>
-                              <td className="p-4 text-zinc-500 max-w-sm shrink truncate">{tool.description}</td>
-                              <td className="p-4 text-xs font-mono text-zinc-600">{tool.iconName}</td>
-                              <td className="p-4 text-right space-x-2">
-                                <button
-                                  onClick={() => setEditingTool(tool)}
-                                  className="inline-flex items-center gap-1 py-1 px-2.5 bg-zinc-100 font-semibold text-[#0073aa] hover:bg-zinc-200 rounded border border-zinc-300 text-xs cursor-pointer"
-                                >
-                                  <Edit className="w-3.5 h-3.5" /> Bearbeiten
-                                </button>
-                                <button
-                                  onClick={() => deleteTool(tool.name)}
-                                  className="inline-flex items-center gap-1 py-1 px-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded border border-red-200 text-xs cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" /> Löschen
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* EDIT TOOL BOX */}
-                    {editingTool && (
-                      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
-                          <h3 className="text-lg font-bold border-b border-zinc-200 pb-2 flex items-center gap-2">
-                            <Wrench className="w-5 h-5 text-[#0073aa]" />
-                            <span>Tool bearbeiten</span>
-                          </h3>
-                          <div className="space-y-3 text-xs sm:text-sm">
-                            <div>
-                              <label className="block font-bold text-zinc-700 label mb-1">Name des Tools</label>
-                              <input
-                                type="text"
-                                value={editingTool.name}
-                                onChange={(e) => setEditingTool({ ...editingTool, name: e.target.value })}
-                                className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 font-semibold"
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-bold text-zinc-700 label mb-1">Beschreibung</label>
-                              <textarea
-                                rows={2}
-                                value={editingTool.description}
-                                onChange={(e) => setEditingTool({ ...editingTool, description: e.target.value })}
-                                className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900"
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-bold text-zinc-700 label mb-1">Branchen-Icon Typ</label>
-                              <select
-                                value={editingTool.iconName}
-                                onChange={(e) => setEditingTool({ ...editingTool, iconName: e.target.value as any })}
-                                className="w-full p-2.5 bg-zinc-50 border border-zinc-300 rounded text-sm text-zinc-900"
-                              >
-                                <option value="Canva">Canva Pro </option>
-                                <option value="Drive">Google Drive</option>
-                                <option value="CapCut">CapCut App</option>
-                                <option value="Instagram">Instagram Native</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div className="pt-4 border-t border-zinc-200 flex justify-end gap-3 text-xs">
-                            <button
-                              onClick={() => setEditingTool(null)}
-                              className="py-2 px-4 bg-zinc-100 border border-zinc-300 text-zinc-700 rounded font-bold hover:bg-zinc-200"
-                            >
-                              Abbrechen
-                            </button>
-                            <button
-                              onClick={saveToolEdit}
-                              className="py-2 px-5 bg-[#0073aa] text-white font-bold rounded hover:bg-[#005177]"
-                            >
-                              Aktualisieren
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* NEW TOOL BOX */}
-                    {isAddingTool && (
-                      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                        <ToolCreateForm 
-                          onClose={() => setIsAddingTool(false)} 
-                          onCreate={addNewTool} 
-                        />
-                      </div>
-                    )}
-
-                  </div>
-                )}
 
                 {/* 5. TAB: REFERENZEN & TESTIMONIALS */}
                 {activeTab === 'referenzen' && (
@@ -2450,9 +2465,9 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                                       <div className="flex flex-col items-center gap-2 shrink-0">
                                         <div className="p-2 border-2 border-dashed border-zinc-300 bg-white shadow-sm flex items-center justify-center rounded-lg overflow-hidden min-h-24 min-w-24 max-w-[220px]">
                                           {ref.logoUrl ? (
-                                            <img src={ref.logoUrl} alt="Logo" className="max-h-20 object-contain" />
+                                            <img src={resolveChunkedUrl(ref.logoUrl)} alt="Logo" className="max-h-20 object-contain" />
                                           ) : ref.imageUrl ? (
-                                            <img src={ref.imageUrl} alt="Fallback Logo" className="max-h-20 object-contain" />
+                                            <img src={resolveChunkedUrl(ref.imageUrl)} alt="Fallback Logo" className="max-h-20 object-contain" />
                                           ) : (
                                             <div className="text-[#0073aa] text-lg font-bold flex items-center justify-center h-12 w-12 rounded-full bg-[#0073aa]/10">
                                               {(ref.name || 'CF').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
@@ -2566,12 +2581,46 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                                         />
                                       )}
                                     </div>
+                                    <div className="mt-4 p-3.5 bg-zinc-50 border border-zinc-200 rounded-lg">
+                                      <label className="block text-zinc-700 font-bold mb-1.5 text-xs">Video-Anzeige-Typ (Wahl zwischen Reel-Link oder direktem Video)</label>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <label className="flex items-start gap-2.5 p-2.5 bg-white border border-zinc-200 rounded hover:bg-zinc-50 cursor-pointer select-none">
+                                          <input
+                                            type="radio"
+                                            name={`videoDisplayMode-${idx}`}
+                                            value="link"
+                                            checked={ref.videoDisplayMode === 'link'}
+                                            onChange={() => updateReference(idx, { videoDisplayMode: 'link' })}
+                                            className="mt-0.5 text-[#0073aa] focus:ring-[#0073aa]"
+                                          />
+                                          <div>
+                                            <span className="font-bold block text-zinc-800 text-xs">Als Reel-Link anzeigen</span>
+                                            <span className="text-[10px] text-zinc-500 block mt-0.5 leading-normal">Das Reel wird als anklickbarer externer Instagram-Link / Button angezeigt (schont Performance, kein Iframe).</span>
+                                          </div>
+                                        </label>
 
-                                    {getInstagramEmbedUrl(ref.reelLink) && (
-                                      <div className="pt-2 border-t border-zinc-200/60 mt-3">
+                                        <label className="flex items-start gap-2.5 p-2.5 bg-white border border-zinc-200 rounded hover:bg-zinc-50 cursor-pointer select-none">
+                                          <input
+                                            type="radio"
+                                            name={`videoDisplayMode-${idx}`}
+                                            value="embedded"
+                                            checked={ref.videoDisplayMode !== 'link'}
+                                            onChange={() => updateReference(idx, { videoDisplayMode: 'embedded' })}
+                                            className="mt-0.5 text-[#0073aa] focus:ring-[#0073aa]"
+                                          />
+                                          <div>
+                                            <span className="font-bold block text-zinc-800 text-xs">Eingebettetes Video auf Seite</span>
+                                            <span className="text-[10px] text-zinc-500 block mt-0.5 leading-normal">Ein Video wird direkt auf deiner Seite (im Smartphone-Player) eingebettet und abgespielt.</span>
+                                          </div>
+                                        </label>
+                                      </div>
+                                    </div>
+
+                                    {(getInstagramEmbedUrl(ref.reelLink) || (ref.mediaType === 'video' && ref.imageUrl) || (ref.videoDisplayMode === 'link' && ref.reelLink)) && (
+                                      <div className="pt-4 border-t border-zinc-200/60 mt-4">
                                         <div className="text-xs font-bold text-zinc-600 mb-2 flex items-center gap-1">
                                           <Play className="w-3.5 h-3.5 text-[#0073aa] fill-current" />
-                                          <span>Instagram Reel Live-Vorschau:</span>
+                                          <span>Smartphone Live-Vorschau:</span>
                                         </div>
 
                                         {/* Sizing Controls for the Backend Preview */}
@@ -2630,19 +2679,264 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                                                 </div>
                                               </div>
 
-                                              <div className="absolute inset-0 bg-zinc-950 overflow-hidden rounded-[30px]">
-                                                <iframe
-                                                  src={getInstagramEmbedUrl(ref.reelLink)!}
-                                                  className="absolute w-[102%] h-[calc(100%+114px)] -top-[54px] -left-[1%] border-0"
-                                                  scrolling="no"
-                                                />
+                                              <div className="absolute inset-0 bg-zinc-950 overflow-hidden rounded-[30px] flex items-center justify-center">
+                                                {ref.videoDisplayMode === 'link' && ref.reelLink ? (
+                                                  <div className="absolute inset-0 bg-gradient-to-tr from-[#f09433]/20 via-[#e6683c]/20 to-[#bc1888]/20 flex flex-col items-center justify-between p-4 text-center select-none">
+                                                    <div className="w-full flex items-center justify-between border-b border-white/10 pb-1 mt-6">
+                                                      <span className="text-[8px] font-mono text-[#ffcc00] uppercase tracking-wider">Instagram Reel</span>
+                                                      <Instagram className="w-3 h-3 text-white/50" />
+                                                    </div>
+                                                    <div className="my-auto flex flex-col items-center gap-2">
+                                                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] flex items-center justify-center text-white shadow-md">
+                                                        <Play className="w-4 h-4 fill-current ml-0.5 text-white" />
+                                                      </div>
+                                                      <span className="text-[10px] font-bold text-white block truncate max-w-[180px]">{ref.name}</span>
+                                                      <span className="text-[8px] text-white/55 block leading-normal px-2">Als Reel-Link hinterlegt</span>
+                                                    </div>
+                                                    <div className="w-full py-1.5 bg-gradient-to-r from-[#f09433] via-[#e6683c] to-[#bc1888] text-white font-bold rounded-lg text-[8px] mb-2 uppercase tracking-wide">
+                                                      Reel öffnen
+                                                    </div>
+                                                  </div>
+                                                ) : ref.mediaType === 'video' && ref.imageUrl ? (
+                                                  <div className="absolute inset-0 z-0 bg-[#001c2e] flex items-center justify-center">
+                                                    <video
+                                                      src={resolveChunkedUrl(ref.imageUrl)}
+                                                      className="w-full h-full object-cover"
+                                                      muted
+                                                      loop
+                                                      playsInline
+                                                      autoPlay
+                                                    />
+                                                    <div className="absolute bottom-2 left-2 z-10 bg-black/40 text-[8px] text-white py-0.5 px-1 rounded">
+                                                      Eigenes Video
+                                                    </div>
+                                                  </div>
+                                                ) : getInstagramEmbedUrl(ref.reelLink) ? (
+                                                  <iframe
+                                                    src={getInstagramEmbedUrl(ref.reelLink)!}
+                                                    className="absolute w-[102%] h-[calc(100%+114px)] -top-[54px] -left-[1%] border-0"
+                                                    scrolling="no"
+                                                  />
+                                                ) : (
+                                                  <div className="text-center p-4">
+                                                    <span className="text-[10px] text-zinc-500 block uppercase font-mono">Keine Vorschau</span>
+                                                  </div>
+                                                )}
                                               </div>
                                             </div>
                                           </div>
                                         </div>
                                         <p className="text-[10px] text-zinc-400 mt-1">
-                                          Diese Vorschau zeigt, wie das Reel direkt in die Website eingebettet wird.
+                                          {ref.videoDisplayMode === 'link' 
+                                            ? "Diese Vorschau zeigt, wie das Reel als Link mit Cover-Vorschau in die Website eingebunden wird."
+                                            : "Diese Vorschau zeigt, wie das Reel direkt in die Website eingebettet wird."}
                                         </p>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* NEU: INSTAGRAM REEL & BEITRAGSBILDER ANORDNUNG */}
+                                  <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200/60 space-y-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-1.5 h-3 bg-[#0073aa] rounded-full"></div>
+                                      <h5 className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Instagram Reel & Beitragsbilder</h5>
+                                    </div>
+
+                                    {/* Reel Position Toggle */}
+                                    <div className="bg-white p-3 rounded-lg border border-zinc-200 space-y-2">
+                                      <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Anordnung im Frontend</label>
+                                      <p className="text-[11px] text-zinc-500">
+                                        Bestimme, auf welcher Seite das eingebettete Reel neben den Beitragsbildern im Frontend angezeigt wird.
+                                      </p>
+                                      <div className="flex items-center gap-4 pt-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => updateReference(idx, { reelPosition: 'left' })}
+                                          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                            (ref.reelPosition || 'left') === 'left'
+                                              ? 'bg-[#0073aa]/10 border-[#0073aa] text-[#0073aa]'
+                                              : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+                                          }`}
+                                        >
+                                          <span>◀ Reel LINKS / Bilder RECHTS</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => updateReference(idx, { reelPosition: 'right' })}
+                                          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                            (ref.reelPosition || 'left') === 'right'
+                                              ? 'bg-[#0073aa]/10 border-[#0073aa] text-[#0073aa]'
+                                              : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+                                          }`}
+                                        >
+                                          <span>Reel RECHTS / Bilder LINKS ▶</span>
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Beitragsbilder List */}
+                                    <div className="bg-white p-3 rounded-lg border border-zinc-200 space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Beitragsbilder</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const currentImages = ref.postImages || [];
+                                            updateReference(idx, { postImages: [...currentImages, { imageUrl: '', instagramLink: '' }] });
+                                          }}
+                                          className="text-xs text-[#0073aa] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <Plus className="w-3.5 h-3.5" />
+                                          <span>Bild hinzufügen</span>
+                                        </button>
+                                      </div>
+
+                                      <p className="text-[11px] text-zinc-500">
+                                        Füge hier Beitragsbilder hinzu, die rechts/links neben dem Reel angezeigt werden. Jedes Bild kann mit einem eigenen Instagram-Link versehen werden.
+                                      </p>
+
+                                      <div className="space-y-4 pt-1">
+                                        {(!ref.postImages || ref.postImages.length === 0) ? (
+                                          <div className="text-center py-6 border border-dashed border-zinc-200 rounded-lg bg-zinc-50/50">
+                                            <p className="text-xs text-zinc-400">Keine Beitragsbilder hinzugefügt.</p>
+                                          </div>
+                                        ) : (
+                                          <div className="grid grid-cols-1 gap-4">
+                                            {ref.postImages.map((img, imgIdx) => (
+                                              <div key={imgIdx} className="p-3 border border-zinc-200 rounded-lg bg-zinc-50/30 space-y-3 relative group">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const currentImages = (ref.postImages || []).filter((_, i) => i !== imgIdx);
+                                                    updateReference(idx, { postImages: currentImages });
+                                                  }}
+                                                  className="absolute top-2 right-2 text-zinc-400 hover:text-red-600 p-1 bg-white hover:bg-red-50 border border-zinc-200 rounded transition-all cursor-pointer"
+                                                  title="Bild entfernen"
+                                                >
+                                                  <Trash className="w-3.5 h-3.5" />
+                                                </button>
+
+                                                <div className="flex flex-col sm:flex-row gap-4 items-start">
+                                                  {/* Image preview */}
+                                                  <div className="w-20 h-20 shrink-0 border border-zinc-200 bg-white rounded overflow-hidden flex items-center justify-center">
+                                                    {img.imageUrl ? (
+                                                      <img src={resolveChunkedUrl(img.imageUrl)} alt={`Beitrag ${imgIdx + 1}`} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                      <ImageIcon className="w-6 h-6 text-zinc-300" />
+                                                    )}
+                                                  </div>
+
+                                                  <div className="flex-1 w-full space-y-3">
+                                                    <ImageUploader
+                                                      id={`ref-${idx}-post-${imgIdx}`}
+                                                      label={`Beitragsbild ${imgIdx + 1}`}
+                                                      currentValue={img.imageUrl}
+                                                      onChange={(val) => {
+                                                        const currentImages = [...(ref.postImages || [])];
+                                                        currentImages[imgIdx] = { ...currentImages[imgIdx], imageUrl: val };
+                                                        updateReference(idx, { postImages: currentImages });
+                                                      }}
+                                                    />
+
+                                                    <div>
+                                                      <label className="block text-[11px] font-bold text-zinc-600 mb-1 flex items-center gap-1">
+                                                        <Link className="w-3 h-3 text-[#0073aa]" />
+                                                        <span>Instagram-Link für dieses Bild (z.B. Direkt zum Reel)</span>
+                                                      </label>
+                                                      <input
+                                                        type="text"
+                                                        value={img.instagramLink || ''}
+                                                        onChange={(e) => {
+                                                          const currentImages = [...(ref.postImages || [])];
+                                                          currentImages[imgIdx] = { ...currentImages[imgIdx], instagramLink: e.target.value };
+                                                          updateReference(idx, { postImages: currentImages });
+                                                        }}
+                                                        placeholder="https://www.instagram.com/reel/..."
+                                                        className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white font-mono"
+                                                      />
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* NEU: EINZELNE STATISTIK-GRAFIK FÜR DIESE REFERENZ */}
+                                  <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200/60 space-y-4">
+                                    <div className="flex items-center justify-between p-3 bg-white border border-zinc-200 rounded-lg">
+                                      <div className="space-y-0.5">
+                                        <span className="block text-xs font-bold text-zinc-800">
+                                          Statistik-Grafik (3D-Säulen) anzeigen?
+                                        </span>
+                                        <p className="text-[10px] text-zinc-500">
+                                          Aktiviere oder deaktiviere die interaktive 3D-Säulengrafik für diese Referenz im Frontend.
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateReference(idx, { showStats: !ref.showStats });
+                                        }}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                          ref.showStats ? 'bg-[#0073aa]' : 'bg-zinc-300'
+                                        }`}
+                                      >
+                                        <span
+                                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                            ref.showStats ? 'translate-x-5' : 'translate-x-0'
+                                          }`}
+                                        />
+                                      </button>
+                                    </div>
+
+                                    {ref.showStats && (
+                                      <div className="bg-white p-3 rounded-lg border border-zinc-200 space-y-3">
+                                        <span className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Zahlenwerte der Grafik</span>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                          <div>
+                                            <label className="block text-zinc-600 font-bold mb-1 text-[10px] uppercase">Säule 1: Aufrufe (z.B. + 270 %)</label>
+                                            <input
+                                              type="text"
+                                              value={ref.stats?.aufrufe || ''}
+                                              onChange={(e) => {
+                                                const currentStats = ref.stats || { aufrufe: '', reichweite: '', interaktion: '' };
+                                                updateReference(idx, { stats: { ...currentStats, aufrufe: e.target.value } });
+                                              }}
+                                              placeholder="+ 270 %"
+                                              className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white font-bold"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-zinc-600 font-bold mb-1 text-[10px] uppercase">Säule 2: Reichweite (z.B. + 2.000 %)</label>
+                                            <input
+                                              type="text"
+                                              value={ref.stats?.reichweite || ''}
+                                              onChange={(e) => {
+                                                const currentStats = ref.stats || { aufrufe: '', reichweite: '', interaktion: '' };
+                                                updateReference(idx, { stats: { ...currentStats, reichweite: e.target.value } });
+                                              }}
+                                              placeholder="+ 2.000 %"
+                                              className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white font-bold"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-zinc-600 font-bold mb-1 text-[10px] uppercase">Säule 3: Interaktion (z.B. + 9.000 %)</label>
+                                            <input
+                                              type="text"
+                                              value={ref.stats?.interaktion || ''}
+                                              onChange={(e) => {
+                                                const currentStats = ref.stats || { aufrufe: '', reichweite: '', interaktion: '' };
+                                                updateReference(idx, { stats: { ...currentStats, interaktion: e.target.value } });
+                                              }}
+                                              placeholder="+ 9.000 %"
+                                              className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white font-bold"
+                                            />
+                                          </div>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -2753,21 +3047,168 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                         </div>
                       </div>
 
-                      <div className="border-t border-zinc-100 pt-4">
-                        <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider flex items-center gap-1">
-                          <Link className="w-3.5 h-3.5 text-[#0073aa]" />
-                          <span>Direkter Instagram Reel-Link für Fehrmann Glas & Design</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={cmsData.fehrmannStats?.reelLink || ''}
-                          onChange={(e) => updateFehrmannStatsFields({ reelLink: e.target.value })}
-                          placeholder="https://www.instagram.com/reel/DaS9nyUMUEg/"
-                          className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold bg-white"
-                        />
-                        <p className="text-xs text-zinc-400 mt-1">
-                          Trage hier den Instagram Reel-Link ein. Dieser wird links neben der Säulengrafik im interaktiven Smartphone-Mockup auf der Website angezeigt.
-                        </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-zinc-100 pt-4">
+                        <div>
+                          <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider">
+                            Highlight-Reel: Überschrift
+                          </label>
+                          <input
+                            type="text"
+                            value={cmsData.fehrmannStats?.highlightReelTitle || ''}
+                            onChange={(e) => updateFehrmannStatsFields({ highlightReelTitle: e.target.value })}
+                            placeholder="HIGHLIGHT-REEL"
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider">
+                            Highlight-Reel: Beschreibung / Text
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={cmsData.fehrmannStats?.highlightReelText || ''}
+                            onChange={(e) => updateFehrmannStatsFields({ highlightReelText: e.target.value })}
+                            placeholder="Dieses Reel demonstriert..."
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-zinc-100 pt-4">
+                        <div>
+                          <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider">
+                            Sichtbarkeit & Reichweite: Überschrift
+                          </label>
+                          <input
+                            type="text"
+                            value={cmsData.fehrmannStats?.sichtbarkeitTitle || ''}
+                            onChange={(e) => updateFehrmannStatsFields({ sichtbarkeitTitle: e.target.value })}
+                            placeholder="Sichtbarkeit & Reichweite"
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-sm font-semibold bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-zinc-700 font-bold mb-1 text-xs uppercase tracking-wider">
+                            Sichtbarkeit & Reichweite: Beschreibung / Text
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={cmsData.fehrmannStats?.sichtbarkeitText || ''}
+                            onChange={(e) => updateFehrmannStatsFields({ sichtbarkeitText: e.target.value })}
+                            placeholder="Unsere datengetriebene Reels-Strategie..."
+                            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900 text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-zinc-100 pt-4 space-y-4">
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider mb-1">
+                            Anzeige-Steuerung (Video-Quelle)
+                          </h4>
+                          <p className="text-xs text-zinc-500 mb-3">
+                            Entscheide, welche Video-Quelle im interaktiven Smartphone-Mockup auf der Website angezeigt werden soll.
+                          </p>
+
+                          {/* High-fidelity Toggle Switch */}
+                          <div className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-xl">
+                            <div className="space-y-1 pr-4">
+                              <span className="block text-xs font-bold text-zinc-800">
+                                {(cmsData.fehrmannStats?.videoType || 'reel') === 'reel' 
+                                  ? 'Instagram Highlight Reel (Embed) ist AKTIV' 
+                                  : 'Eigenes eingebettetes Video (Upload) ist AKTIV'}
+                              </span>
+                              <p className="text-[11px] text-zinc-500 leading-normal">
+                                {(cmsData.fehrmannStats?.videoType || 'reel') === 'reel'
+                                  ? 'Das Instagram Highlight Reel wird angezeigt. Das hochgeladene Video ist im Frontend ausgeblendet.'
+                                  : 'Dein hochgeladenes Video wird angezeigt. Das Instagram Highlight Reel ist im Frontend ausgeblendet.'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentType = cmsData.fehrmannStats?.videoType || 'reel';
+                                const nextType = currentType === 'reel' ? 'uploaded' : 'reel';
+                                updateFehrmannStatsFields({ videoType: nextType });
+                              }}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                (cmsData.fehrmannStats?.videoType || 'reel') === 'reel' ? 'bg-[#0073aa]' : 'bg-zinc-300'
+                              }`}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  (cmsData.fehrmannStats?.videoType || 'reel') === 'reel' ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Config Fields based on toggle status */}
+                        <div className="space-y-4 bg-zinc-50/30 p-4 border border-zinc-200 rounded-xl">
+                          {/* Option 1: Instagram Reel Link */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${
+                                (cmsData.fehrmannStats?.videoType || 'reel') === 'reel' ? 'bg-[#0073aa] animate-pulse' : 'bg-zinc-300'
+                              }`} />
+                              <span className={`text-xs font-bold ${
+                                (cmsData.fehrmannStats?.videoType || 'reel') === 'reel' ? 'text-zinc-800' : 'text-zinc-400'
+                              }`}>
+                                Option A: Instagram Highlight Reel (Reel-Link)
+                              </span>
+                            </div>
+                            
+                            <div className="pl-4">
+                              <input
+                                type="text"
+                                disabled={(cmsData.fehrmannStats?.videoType || 'reel') !== 'reel'}
+                                value={cmsData.fehrmannStats?.reelLink || ''}
+                                onChange={(e) => updateFehrmannStatsFields({ reelLink: e.target.value })}
+                                placeholder="https://www.instagram.com/reel/DaS9nyUMUEg/"
+                                className={`w-full p-2.5 border rounded text-zinc-900 text-sm font-semibold bg-white focus:outline-none focus:ring-1 focus:ring-[#0073aa] transition-all ${
+                                  (cmsData.fehrmannStats?.videoType || 'reel') !== 'reel' 
+                                    ? 'opacity-40 cursor-not-allowed bg-zinc-100 border-zinc-200' 
+                                    : 'border-zinc-300'
+                                }`}
+                              />
+                              <p className="text-[11px] text-zinc-400 mt-1">
+                                Trage hier den Instagram Reel-Link ein. Dieser wird im interaktiven Smartphone-Mockup auf der Website angezeigt, wenn diese Option per Toggle aktiviert ist.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="h-[1px] bg-zinc-200 my-2" />
+
+                          {/* Option 2: Upload Video */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${
+                                cmsData.fehrmannStats?.videoType === 'uploaded' ? 'bg-[#0073aa] animate-pulse' : 'bg-zinc-300'
+                              }`} />
+                              <span className={`text-xs font-bold ${
+                                cmsData.fehrmannStats?.videoType === 'uploaded' ? 'text-zinc-800' : 'text-zinc-400'
+                              }`}>
+                                Option B: Eigenes eingebettetes Video (Datei-Upload)
+                              </span>
+                            </div>
+
+                            <div className={`pl-4 transition-all ${
+                              cmsData.fehrmannStats?.videoType !== 'uploaded' ? 'opacity-40 pointer-events-none' : ''
+                            }`}>
+                              <VideoUploader
+                                id="fehrmann-custom-video-upload"
+                                currentValue={cmsData.fehrmannStats?.uploadedVideoUrl || ''}
+                                onChange={(val) => updateFehrmannStatsFields({ uploadedVideoUrl: val })}
+                              />
+                              <p className="text-[11px] text-zinc-400 mt-1">
+                                Lade eine Videodatei (MP4, WEBM oder MOV) hoch. Sie wird direkt im interaktiven Smartphone-Mockup abgespielt, wenn diese Option per Toggle aktiviert ist.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="p-3 bg-zinc-50 border border-zinc-100 rounded-lg">
@@ -3124,6 +3565,104 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                           onChange={(e) => updateFooterField('location', e.target.value)}
                           className="w-full p-2.5 border border-zinc-300 rounded text-sm"
                         />
+                      </div>
+                    </div>
+
+                    <h3 className="text-base font-bold text-zinc-900 border-b border-zinc-200 pb-2 mt-8">Kontakt-Sektion Texte</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Eyebrow (Über-Überschrift)</label>
+                        <input
+                          type="text"
+                          value={cmsData.footer.contactEyebrow ?? ''}
+                          onChange={(e) => updateFooterField('contactEyebrow', e.target.value)}
+                          className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Überschrift (Headline)</label>
+                        <input
+                          type="text"
+                          value={cmsData.footer.contactTitle ?? ''}
+                          onChange={(e) => updateFooterField('contactTitle', e.target.value)}
+                          className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900 font-semibold"
+                        />
+                        <p className="text-[10px] text-zinc-400 mt-1">Nutze eckige Klammern wie <code>[ETWAS GROSSES]</code> für farbliche Akzente.</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Beschreibungstext</label>
+                        <textarea
+                          rows={3}
+                          value={cmsData.footer.contactText ?? ''}
+                          onChange={(e) => updateFooterField('contactText', e.target.value)}
+                          className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">WhatsApp Karte: Label</label>
+                          <input
+                            type="text"
+                            value={cmsData.footer.contactWaLabel ?? ''}
+                            onChange={(e) => updateFooterField('contactWaLabel', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">WhatsApp Karte: Untertext</label>
+                          <input
+                            type="text"
+                            value={cmsData.footer.contactWaSubtext ?? ''}
+                            onChange={(e) => updateFooterField('contactWaSubtext', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">E-Mail Karte: Label</label>
+                          <input
+                            type="text"
+                            value={cmsData.footer.contactEmailLabel ?? ''}
+                            onChange={(e) => updateFooterField('contactEmailLabel', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">E-Mail Karte: Untertext</label>
+                          <input
+                            type="text"
+                            value={cmsData.footer.contactEmailSubtext ?? ''}
+                            onChange={(e) => updateFooterField('contactEmailSubtext', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Instagram Karte: Label</label>
+                          <input
+                            type="text"
+                            value={cmsData.footer.contactIgLabel ?? ''}
+                            onChange={(e) => updateFooterField('contactIgLabel', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Instagram Karte: Untertext</label>
+                          <input
+                            type="text"
+                            value={cmsData.footer.contactIgSubtext ?? ''}
+                            onChange={(e) => updateFooterField('contactIgSubtext', e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm text-zinc-900"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -3836,80 +4375,7 @@ function ServiceCreateForm({ onClose, onCreate }: { onClose: () => void; onCreat
   );
 }
 
-function ToolCreateForm({ onClose, onCreate }: { onClose: () => void; onCreate: (t: Tool) => void }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [iconName, setIconName] = useState<'Canva' | 'Drive' | 'CapCut' | 'Instagram'>('Canva');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name) return;
-    onCreate({
-      name,
-      description,
-      iconName
-    });
-  };
-
-  return (
-    <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
-      <h3 className="text-lg font-bold border-b border-zinc-200 pb-2">Tool zum Arsenal hinzufügen</h3>
-      <form onSubmit={handleSubmit} className="space-y-3 text-xs sm:text-sm">
-        <div>
-          <label className="block font-bold text-[#32373c] mb-1">Zahnrad Name</label>
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900"
-            placeholder="z.B. Adobe Premiere"
-          />
-        </div>
-        <div>
-          <label className="block font-bold text-[#32373c] mb-1">Zweck / Beschreibung</label>
-          <textarea
-            rows={2}
-            required
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2.5 border border-zinc-300 rounded text-zinc-900"
-            placeholder="Welche Rolle spielt dieses Werkzeug für Kundenbetreuung?"
-          />
-        </div>
-        <div>
-          <label className="block font-bold text-[#32373c] mb-1">UI-Icon Typ</label>
-          <select
-            value={iconName}
-            onChange={(e) => setIconName(e.target.value as any)}
-            className="w-full p-2.5 bg-zinc-50 border border-zinc-300 rounded text-zinc-900"
-          >
-            <option value="Canva">Canva Pro Layout</option>
-            <option value="Drive">Google Drive Cloud</option>
-            <option value="CapCut">CapCut App Schnitt</option>
-            <option value="Instagram">Instagram Native App</option>
-          </select>
-        </div>
-
-        <div className="pt-4 border-t border-zinc-200 flex justify-end gap-3 text-xs">
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-2 px-4 bg-zinc-100 border border-zinc-300 text-zinc-700 rounded font-bold hover:bg-zinc-200"
-          >
-            Abbrechen
-          </button>
-          <button
-            type="submit"
-            className="py-2 px-5 bg-[#0073aa] text-white font-bold rounded hover:bg-[#005177]"
-          >
-            Speichern
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 export function VideoFileUploader({
   id,
@@ -3972,7 +4438,7 @@ export function VideoFileUploader({
         <div className="relative w-24 h-24 rounded-lg bg-zinc-100 border border-zinc-200 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
           {currentValue ? (
             <video
-              src={currentValue}
+              src={resolveChunkedUrl(currentValue)}
               className="w-full h-full object-cover"
               muted
               loop

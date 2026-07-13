@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mail, MessageSquare, Send, CheckCircle2, Copy, Trash2, ArrowRight } from 'lucide-react';
 
 import { FooterConfig, BetweenSectionImageConfig } from '../types';
+import { resolveChunkedUrl } from '../lib/firebase';
 
 export default function ContactForm({ footer, contactImage }: { footer?: FooterConfig; contactImage?: BetweenSectionImageConfig }) {
   const currentEmail = footer?.email || 'florian@floriankusche.de';
@@ -56,6 +57,21 @@ export default function ContactForm({ footer, contactImage }: { footer?: FooterC
     setIsSuccess(false);
   };
 
+  const renderHeadline = (text: string) => {
+    const parts = text.split(/\[(.*?)\]/g);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return <span key={index} className="text-[#ffcc00]">{part}</span>;
+      }
+      return part.split('\n').map((line, lIdx) => (
+        <span key={`${index}-${lIdx}`}>
+          {line}
+          {lIdx < part.split('\n').length - 1 && <br />}
+        </span>
+      ));
+    });
+  };
+
   return (
     <section id="kontakt" className="py-20 md:py-28 bg-brand-dark px-4 sm:px-6 relative overflow-hidden">
       
@@ -70,8 +86,8 @@ export default function ContactForm({ footer, contactImage }: { footer?: FooterC
           {/* Left Side Info Pane: Contact Cards */}
           <div className="lg:col-span-2 space-y-8">
             <div>
-              <span className="text-xs font-mono text-[#d6c3a3] tracking-[0.25em] uppercase block mb-3">
-                KONTAKT & DIALOG
+              <span className="text-xs font-mono text-[#d6c3a3] tracking-[0.25em] uppercase block mb-3" id="contact-eyebrow">
+                {footer?.contactEyebrow || 'KONTAKT & DIALOG'}
               </span>
               {contactImage?.enabled && contactImage.imageUrl && (
                 <div 
@@ -91,7 +107,7 @@ export default function ContactForm({ footer, contactImage }: { footer?: FooterC
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.4 }}
-                    src={contactImage.imageUrl}
+                    src={resolveChunkedUrl(contactImage.imageUrl)}
                     alt="Kontakt Foto"
                     className={`object-cover shadow-2xl border border-brand-dark-card/40 ${
                       contactImage.borderRadius === 'full' 
@@ -109,12 +125,16 @@ export default function ContactForm({ footer, contactImage }: { footer?: FooterC
                   />
                 </div>
               )}
-              <h2 className="font-display text-3xl sm:text-4xl font-black text-white uppercase tracking-tight">
-                LASS UNS <br />
-                <span className="text-[#ffcc00]">ETWAS GROSSES</span> STARTEN
+              <h2 className="font-display text-3xl sm:text-4xl font-black text-white uppercase tracking-tight" id="contact-title">
+                {footer?.contactTitle ? renderHeadline(footer.contactTitle) : (
+                  <>
+                    LASS UNS <br />
+                    <span className="text-[#ffcc00]">ETWAS GROSSES</span> STARTEN
+                  </>
+                )}
               </h2>
-              <p className="text-[#cce9ff]/80 text-sm mt-4 leading-relaxed">
-                Egal ob schnelles Feedback auf WhatsApp, klassische E-Mail oder ausführliche Nachricht – wähle einfach deinen bevorzugten Kanal aus. Ich melde mich innerhalb von 24 Stunden bei dir.
+              <p className="text-[#cce9ff]/80 text-sm mt-4 leading-relaxed" id="contact-text">
+                {footer?.contactText || 'Egal ob schnelles Feedback auf WhatsApp, klassische E-Mail oder ausführliche Nachricht – wähle einfach deinen bevorzugten Kanal aus. Ich melde mich innerhalb von 24 Stunden bei dir.'}
               </p>
             </div>
 
@@ -133,9 +153,9 @@ export default function ContactForm({ footer, contactImage }: { footer?: FooterC
                   <MessageSquare className="w-5 h-5 fill-current" />
                 </div>
                 <div>
-                  <span className="font-mono text-[9px] text-emerald-400 tracking-widest uppercase block font-semibold">WhatsApp Chat</span>
+                  <span className="font-mono text-[9px] text-emerald-400 tracking-widest uppercase block font-semibold">{footer?.contactWaLabel || 'WhatsApp Chat'}</span>
                   <span className="font-display text-base font-bold text-white block">{currentPhone}</span>
-                  <span className="text-xs text-[#cce9ff]/60">Sende eine Frage direkt über WhatsApp</span>
+                  <span className="text-xs text-[#cce9ff]/60">{footer?.contactWaSubtext || 'Sende eine Frage direkt über WhatsApp'}</span>
                 </div>
               </a>
 
@@ -149,9 +169,9 @@ export default function ContactForm({ footer, contactImage }: { footer?: FooterC
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="font-mono text-[9px] text-[#d6c3a3] tracking-widest uppercase block font-semibold">Klassische Nachricht</span>
+                  <span className="font-mono text-[9px] text-[#d6c3a3] tracking-widest uppercase block font-semibold">{footer?.contactEmailLabel || 'Klassische Nachricht'}</span>
                   <span className="font-display text-base font-bold text-white block">{currentEmail}</span>
-                  <span className="text-xs text-[#cce9ff]/60">Antwortgarantie unter 24 Stunden</span>
+                  <span className="text-xs text-[#cce9ff]/60">{footer?.contactEmailSubtext || 'Antwortgarantie unter 24 Stunden'}</span>
                 </div>
               </a>
 
@@ -167,9 +187,9 @@ export default function ContactForm({ footer, contactImage }: { footer?: FooterC
                   <span className="font-sans font-black text-sm">IG</span>
                 </div>
                 <div>
-                  <span className="font-mono text-[9px] text-[#d6c3a3] tracking-widest uppercase block font-semibold">Social Media</span>
+                  <span className="font-mono text-[9px] text-[#d6c3a3] tracking-widest uppercase block font-semibold">{footer?.contactIgLabel || 'Social Media'}</span>
                   <span className="font-display text-base font-bold text-white block">{currentInstagram}</span>
-                  <span className="text-xs text-[#cce9ff]/60">Folge mir für nützliche Instagram-Hacks</span>
+                  <span className="text-xs text-[#cce9ff]/60">{footer?.contactIgSubtext || 'Folge mir für nützliche Instagram-Hacks'}</span>
                 </div>
               </a>
 
