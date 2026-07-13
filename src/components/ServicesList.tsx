@@ -259,37 +259,39 @@ export default function ServicesList({
         </motion.div>
 
         {/* Add-on Banner */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="p-6 md:p-8 rounded-2xl bg-brand-darker border border-[#ffcc00]/20 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-6"
-          id="service-addon-banner"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#ffcc00]/10 rounded-xl text-[#ffcc00] border border-[#ffcc00]/20 shrink-0">
-              <Palette className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="font-mono text-[10px] text-[#d6c3a3] tracking-[0.2em] uppercase block mb-0.5">
-                EXKLUSIVES UPGRADE-ANGEBOT
-              </span>
-              <h4 className="font-display text-base font-bold text-white uppercase tracking-wider">
-                Full-Service-Design: Website & Printmaterial
-              </h4>
-              <p className="text-xs text-[#cce9ff]/75 mt-0.5 max-w-xl">
-                Auf Wunsch übernehme ich auch das Screendesign deiner Website sowie edle Printmaterialien (Visitenkarten, Flyer) – alles aus einer kreativen Hand.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onOpenBooking}
-            className="py-3 px-5 text-center text-xs tracking-widest font-black uppercase rounded-lg border border-[#ffcc00] text-[#ffcc00] hover:bg-[#ffcc00] hover:text-black hover:scale-[1.02] cursor-pointer transition-all shrink-0 font-display"
+        {(sectionConfig?.upgradeBannerEnabled !== false) && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="p-6 md:p-8 rounded-2xl bg-brand-darker border border-[#ffcc00]/20 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-6"
+            id="service-addon-banner"
           >
-            Auf Anfrage hinzufügen
-          </button>
-        </motion.div>
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-[#ffcc00]/10 rounded-xl text-[#ffcc00] border border-[#ffcc00]/20 shrink-0">
+                <Palette className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="font-mono text-[10px] text-[#d6c3a3] tracking-[0.2em] uppercase block mb-0.5">
+                  {sectionConfig?.upgradeBannerEyebrow || 'EXKLUSIVES UPGRADE-ANGEBOT'}
+                </span>
+                <h4 className="font-display text-base font-bold text-white uppercase tracking-wider">
+                  {sectionConfig?.upgradeBannerTitle || 'DEINE WEBSITE, GENAUSO STARK WIE DEIN INSTAGRAM'}
+                </h4>
+                <p className="text-xs text-[#cce9ff]/75 mt-0.5 max-w-xl">
+                  {sectionConfig?.upgradeBannerText || 'Diese Seite hier ist im Team mit meinem Spezialisten für Webdesign und Hosting entstanden. Auch bei dir arbeiten wir gemeinsam: Wir hören uns deine Idee, deine Vision und dein Ziel an und gehen dann gemeinsam in Planung und Umsetzung, Screendesign und Instagram-Auftritt aus einer Hand.'}
+                </p>
+              </div>
+            </div>
+            <a
+              href={sectionConfig?.upgradeBannerButtonUrl || 'mailto:florian@floriankusche.de?subject=Website-Anfrage'}
+              className="py-3 px-5 text-center text-xs tracking-widest font-black uppercase rounded-lg border border-[#ffcc00] text-[#ffcc00] hover:bg-[#ffcc00] hover:text-black hover:scale-[1.02] cursor-pointer transition-all shrink-0 font-display flex items-center justify-center"
+            >
+              {sectionConfig?.upgradeBannerButtonText || 'Direkt anfragen'}
+            </a>
+          </motion.div>
+        )}
       </div>
     </section>
   );

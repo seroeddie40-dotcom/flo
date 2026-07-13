@@ -596,7 +596,7 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
     setCmsData({ ...cmsData, services });
   };
 
-  const updateServicesSectionField = (field: 'eyebrow' | 'title', value: string) => {
+  const updateServicesSectionField = (field: keyof ServicesSectionConfig, value: any) => {
     if (!cmsData) return;
     const section = cmsData.servicesSection || {
       eyebrow: 'PORTFOLIO & LEISTUNGEN',
@@ -2302,6 +2302,97 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                         />
                       )}
 
+                      {/* Section 3: Exklusives Upgrade-Angebot Banner */}
+                      <div className="bg-white border border-zinc-200 p-6 rounded-xl shadow-sm space-y-6 text-left">
+                        <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
+                          <div>
+                            <h3 className="text-base font-bold text-zinc-900">Exklusives Upgrade-Angebot Banner</h3>
+                            <p className="text-xs text-zinc-500 mt-1">
+                              Konfiguriere den Banner-Bereich unter den Leistungen.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-zinc-600">Bereich anzeigen</span>
+                            <button
+                              type="button"
+                              onClick={() => updateServicesSectionField('upgradeBannerEnabled', sectConfig.upgradeBannerEnabled !== false ? false : true)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                sectConfig.upgradeBannerEnabled !== false ? 'bg-[#ffcc00]' : 'bg-zinc-300'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                  sectConfig.upgradeBannerEnabled !== false ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+
+                        {sectConfig.upgradeBannerEnabled !== false && (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Über-Überschrift (Eyebrow)</label>
+                                <input
+                                  type="text"
+                                  value={sectConfig.upgradeBannerEyebrow ?? 'EXKLUSIVES UPGRADE-ANGEBOT'}
+                                  onChange={(e) => updateServicesSectionField('upgradeBannerEyebrow', e.target.value)}
+                                  placeholder="EXKLUSIVES UPGRADE-ANGEBOT"
+                                  className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Überschrift (Headline)</label>
+                                <input
+                                  type="text"
+                                  value={sectConfig.upgradeBannerTitle ?? 'DEINE WEBSITE, GENAUSO STARK WIE DEIN INSTAGRAM'}
+                                  onChange={(e) => updateServicesSectionField('upgradeBannerTitle', e.target.value)}
+                                  placeholder="DEINE WEBSITE, GENAUSO STARK WIE DEIN INSTAGRAM"
+                                  className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-extrabold"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Fließtext (Beschreibung)</label>
+                              <textarea
+                                value={sectConfig.upgradeBannerText ?? 'Diese Seite hier ist im Team mit meinem Spezialisten für Webdesign und Hosting entstanden. Auch bei dir arbeiten wir gemeinsam: Wir hören uns deine Idee, deine Vision und dein Ziel an und gehen dann gemeinsam in Planung und Umsetzung, Screendesign und Instagram-Auftritt aus einer Hand.'}
+                                onChange={(e) => updateServicesSectionField('upgradeBannerText', e.target.value)}
+                                placeholder="Textbeschreibung hier eingeben..."
+                                rows={4}
+                                className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 leading-relaxed"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Button-Text</label>
+                                <input
+                                  type="text"
+                                  value={sectConfig.upgradeBannerButtonText ?? 'Direkt anfragen'}
+                                  onChange={(e) => updateServicesSectionField('upgradeBannerButtonText', e.target.value)}
+                                  placeholder="Direkt anfragen"
+                                  className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-semibold"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Button-Link (Mailto oder URL)</label>
+                                <input
+                                  type="text"
+                                  value={sectConfig.upgradeBannerButtonUrl ?? 'mailto:florian@floriankusche.de?subject=Website-Anfrage'}
+                                  onChange={(e) => updateServicesSectionField('upgradeBannerButtonUrl', e.target.value)}
+                                  placeholder="mailto:florian@floriankusche.de?subject=Website-Anfrage"
+                                  className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-semibold font-mono"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   );
                 })()}
@@ -2573,12 +2664,34 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                                         />
                                       )}
                                       {ref.mediaType === 'video' && (
-                                        <VideoFileUploader
-                                          id={`ref-video-file-${idx}`}
-                                          label="Referenz-Video / Reel hochladen"
-                                          currentValue={ref.imageUrl}
-                                          onChange={(val) => updateReference(idx, { imageUrl: val })}
-                                        />
+                                        <div className="space-y-3">
+                                          <div>
+                                            <label className="block text-zinc-600 font-bold mb-1 text-xs">Direkte Video-URL (z. B. .mp4 Link aus externem Speicher wie Supabase)</label>
+                                            <input
+                                              type="text"
+                                              value={ref.imageUrl || ''}
+                                              onChange={(e) => updateReference(idx, { imageUrl: e.target.value })}
+                                              placeholder="https://example.com/video.mp4"
+                                              className="w-full p-2 border border-zinc-300 rounded text-sm font-semibold bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-[#0073aa] transition-all"
+                                            />
+                                            <p className="text-[11px] text-zinc-400 mt-1">
+                                              Füge hier einen direkten Videolink (.mp4, .mov, .webm) ein, um das Video abzuspielen, oder nutze den Uploader unten.
+                                            </p>
+                                          </div>
+
+                                          <div className="flex items-center gap-2 my-1">
+                                            <div className="h-[1px] bg-zinc-200 flex-1"></div>
+                                            <span className="text-[10px] text-zinc-400 font-bold uppercase">Oder Datei hochladen</span>
+                                            <div className="h-[1px] bg-zinc-200 flex-1"></div>
+                                          </div>
+
+                                          <VideoFileUploader
+                                            id={`ref-video-file-${idx}`}
+                                            label="Alternativ: Referenz-Video / Reel hochladen"
+                                            currentValue={ref.imageUrl}
+                                            onChange={(val) => updateReference(idx, { imageUrl: val })}
+                                          />
+                                        </div>
                                       )}
                                     </div>
                                     <div className="mt-4 p-3.5 bg-zinc-50 border border-zinc-200 rounded-lg">
@@ -3195,17 +3308,34 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                               </span>
                             </div>
 
-                            <div className={`pl-4 transition-all ${
+                            <div className={`pl-4 transition-all space-y-3 ${
                               cmsData.fehrmannStats?.videoType !== 'uploaded' ? 'opacity-40 pointer-events-none' : ''
                             }`}>
+                              <div>
+                                <label className="block text-zinc-600 font-bold mb-1 text-xs">Direkte Video-URL (z. B. .mp4 Link aus externem Speicher wie Supabase)</label>
+                                <input
+                                  type="text"
+                                  value={cmsData.fehrmannStats?.uploadedVideoUrl || ''}
+                                  onChange={(e) => updateFehrmannStatsFields({ uploadedVideoUrl: e.target.value })}
+                                  placeholder="https://example.com/video.mp4"
+                                  className="w-full p-2 border border-zinc-300 rounded text-sm font-semibold bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-[#0073aa] transition-all"
+                                />
+                                <p className="text-[11px] text-zinc-400 mt-1">
+                                  Füge hier einen direkten Videolink (.mp4, .mov, .webm) ein, um das Video abzuspielen, oder nutze den Uploader unten.
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 my-1">
+                                <div className="h-[1px] bg-zinc-200 flex-1"></div>
+                                <span className="text-[10px] text-zinc-400 font-bold uppercase">Oder Datei hochladen</span>
+                                <div className="h-[1px] bg-zinc-200 flex-1"></div>
+                              </div>
+
                               <VideoUploader
                                 id="fehrmann-custom-video-upload"
                                 currentValue={cmsData.fehrmannStats?.uploadedVideoUrl || ''}
                                 onChange={(val) => updateFehrmannStatsFields({ uploadedVideoUrl: val })}
                               />
-                              <p className="text-[11px] text-zinc-400 mt-1">
-                                Lade eine Videodatei (MP4, WEBM oder MOV) hoch. Sie wird direkt im interaktiven Smartphone-Mockup abgespielt, wenn diese Option per Toggle aktiviert ist.
-                              </p>
                             </div>
                           </div>
                         </div>

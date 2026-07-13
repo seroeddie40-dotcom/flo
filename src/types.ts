@@ -122,6 +122,12 @@ export interface ServicesSectionConfig {
   eyebrow: string;
   title: string;
   descriptions: (string | ServiceTextSection)[];
+  upgradeBannerEnabled?: boolean;
+  upgradeBannerEyebrow?: string;
+  upgradeBannerTitle?: string;
+  upgradeBannerText?: string;
+  upgradeBannerButtonText?: string;
+  upgradeBannerButtonUrl?: string;
 }
 
 export interface ColorConfig {

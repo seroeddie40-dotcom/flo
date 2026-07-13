@@ -138,27 +138,6 @@ function ReferenceCard({ refData, idx, onOpenModal }: ReferenceCardProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {isLinkDisplay && refData.reelLink ? (
-                <a 
-                  href={refData.reelLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-black bg-[#ffcc00] hover:bg-[#e0b400] py-1.5 px-3 rounded-lg font-bold transition-all hover:scale-105 cursor-pointer border-none"
-                >
-                  <Instagram className="w-3.5 h-3.5" />
-                  <span>Reel ansehen</span>
-                  <ExternalLink className="w-3 h-3 ml-0.5" />
-                </a>
-              ) : (refData.reelLink || (refData.mediaType === 'video' && refData.imageUrl)) ? (
-                <button 
-                  onClick={() => onOpenModal(refData.reelLink || refData.imageUrl || '', refData.name)}
-                  className="flex items-center gap-1.5 text-xs text-black bg-[#ffcc00] hover:bg-[#e0b400] py-1.5 px-3 rounded-lg font-bold transition-all hover:scale-105 cursor-pointer border-none"
-                >
-                  <Play className="w-3 h-3 fill-current" />
-                  <span>Reel im Großformat</span>
-                  <ExternalLink className="w-3 h-3 ml-0.5" />
-                </button>
-              ) : null}
               <div className="flex items-center gap-1.5 text-xs text-accent bg-[#014e7a]/40 py-1.5 px-3 rounded-lg border border-[#014e7a]/30">
                 <ShieldCheck className="w-4 h-4 text-[#ffcc00]" />
                 <span className="font-mono uppercase tracking-wider font-semibold">Format: {refData.format}</span>

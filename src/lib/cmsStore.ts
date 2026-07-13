@@ -146,7 +146,13 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     title: 'WIE ICH DEINE MARKE [UNSCHLAGBAR SICHTBAR] MACHE',
     descriptions: [
       'Mein Versprechen: Hochwertiger, strategischer Content, der deine Markenbotschaft trägt und aus Followern messbare Leads generiert. Komplett von mir abgewickelt, ohne Stress für dich.'
-    ]
+    ],
+    upgradeBannerEnabled: true,
+    upgradeBannerEyebrow: 'EXKLUSIVES UPGRADE-ANGEBOT',
+    upgradeBannerTitle: 'DEINE WEBSITE, GENAUSO STARK WIE DEIN INSTAGRAM',
+    upgradeBannerText: 'Diese Seite hier ist im Team mit meinem Spezialisten für Webdesign und Hosting entstanden. Auch bei dir arbeiten wir gemeinsam: Wir hören uns deine Idee, deine Vision und dein Ziel an und gehen dann gemeinsam in Planung und Umsetzung, Screendesign und Instagram-Auftritt aus einer Hand.',
+    upgradeBannerButtonText: 'Direkt anfragen',
+    upgradeBannerButtonUrl: 'mailto:florian@floriankusche.de?subject=Website-Anfrage'
   },
   colors: {
     accent: '#ffcc00',
@@ -196,8 +202,8 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     highlightReelText: 'Dieses Reel demonstriert die faszinierende Ästhetik von handgefertigtem Glas und modernem Design. Klicke auf Play, um das Video zu starten, oder teste das Like-System!',
     sichtbarkeitTitle: 'Sichtbarkeit & Reichweite',
     sichtbarkeitText: 'Unsere datengetriebene Reels-Strategie sorgt für überproportionales Wachstum in der Zielgruppe. Die Zahlenwerte passen sich dynamisch an.',
-    videoType: 'reel',
-    uploadedVideoUrl: ''
+    videoType: 'uploaded',
+    uploadedVideoUrl: 'https://uchdjdmdzuvsgqhlczwk.supabase.co/storage/v1/object/public/public%20media/Glasvordach_x264%20(1).mp4'
   },
   calendly: {
     calendlyUrl: 'https://calendly.com/floriankusche',
@@ -251,13 +257,36 @@ export function getLocalCache(): LandingPageData | null {
   try {
     const cached = localStorage.getItem('florian_cms_cache');
     if (cached) {
-      return JSON.parse(cached);
+      const parsed = JSON.parse(cached);
+      return cleanFailedPlaceholdersRecursive(parsed);
     }
   } catch (e) {
     console.error('Error reading florian_cms_cache from localStorage:', e);
   }
   return null;
 }
+
+export function cleanFailedPlaceholdersRecursive(obj: any): any {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(cleanFailedPlaceholdersRecursive);
+  }
+  const cleanObj = {} as any;
+  for (const key of Object.keys(obj)) {
+    const value = obj[key];
+    if (typeof value === 'string' && value.startsWith('failed-upload-placeholder:')) {
+      cleanObj[key] = undefined;
+    } else if (value && typeof value === 'object') {
+      cleanObj[key] = cleanFailedPlaceholdersRecursive(value);
+    } else {
+      cleanObj[key] = value;
+    }
+  }
+  return cleanObj;
+}
+
 
 export function setLocalCache(data: LandingPageData) {
   try {
@@ -279,7 +308,8 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
     const docSnap = await withTimeout(getDoc(configDocRef), 35000, 'offline');
 
     if (docSnap.exists()) {
-      const dbData = docSnap.data() as Partial<LandingPageData>;
+      const rawDbData = docSnap.data() as Partial<LandingPageData>;
+      const dbData = cleanFailedPlaceholdersRecursive(rawDbData);
       
       const pageData: LandingPageData = {
         hero: { ...DEFAULT_PAGE_DATA.hero, ...(dbData.hero || {}) },
@@ -529,7 +559,8 @@ export function subscribeLandingPageData(callback: (data: LandingPageData) => vo
   
   return onSnapshot(configDocRef, async (docSnap) => {
     if (docSnap.exists()) {
-      const dbData = docSnap.data() as Partial<LandingPageData>;
+      const rawDbData = docSnap.data() as Partial<LandingPageData>;
+      const dbData = cleanFailedPlaceholdersRecursive(rawDbData);
       
       const pageData: LandingPageData = {
         hero: { ...DEFAULT_PAGE_DATA.hero, ...(dbData.hero || {}) },
