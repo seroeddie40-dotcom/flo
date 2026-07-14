@@ -343,7 +343,12 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
           ? { ...DEFAULT_PAGE_DATA.trustBlock, ...dbData.trustBlock }
           : DEFAULT_PAGE_DATA.trustBlock,
         fehrmannStats: dbData.fehrmannStats
-          ? { ...DEFAULT_PAGE_DATA.fehrmannStats, ...dbData.fehrmannStats }
+          ? { 
+              ...DEFAULT_PAGE_DATA.fehrmannStats, 
+              ...dbData.fehrmannStats,
+              videoType: dbData.fehrmannStats.videoType || 'uploaded',
+              uploadedVideoUrl: dbData.fehrmannStats.uploadedVideoUrl || 'https://uchdjdmdzuvsgqhlczwk.supabase.co/storage/v1/object/public/public%20media/Glasvordach_x264%20(1).mp4'
+            }
           : DEFAULT_PAGE_DATA.fehrmannStats
       };
 
@@ -594,7 +599,12 @@ export function subscribeLandingPageData(callback: (data: LandingPageData) => vo
           ? { ...DEFAULT_PAGE_DATA.trustBlock, ...dbData.trustBlock }
           : DEFAULT_PAGE_DATA.trustBlock,
         fehrmannStats: dbData.fehrmannStats
-          ? { ...DEFAULT_PAGE_DATA.fehrmannStats, ...dbData.fehrmannStats }
+          ? { 
+              ...DEFAULT_PAGE_DATA.fehrmannStats, 
+              ...dbData.fehrmannStats,
+              videoType: dbData.fehrmannStats.videoType || 'uploaded',
+              uploadedVideoUrl: dbData.fehrmannStats.uploadedVideoUrl || 'https://uchdjdmdzuvsgqhlczwk.supabase.co/storage/v1/object/public/public%20media/Glasvordach_x264%20(1).mp4'
+            }
           : DEFAULT_PAGE_DATA.fehrmannStats
       };
 

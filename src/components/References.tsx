@@ -554,23 +554,36 @@ export default function References({
   const [activeModalTitle, setActiveModalTitle] = useState<string>('');
 
   const list = (references || REFERENCES).map(r => {
-    if (r.name === 'Fehrmann Glas & Design' && fehrmannStats) {
-      const isReel = (fehrmannStats.videoType || 'reel') === 'reel';
+    if (r.name === 'Fehrmann Glas & Design') {
+      const stats = fehrmannStats || {
+        aufrufe: '+ 270 %',
+        reichweite: '+ 2.000 %',
+        interaktion: '+ 9.000 %',
+        videoType: 'uploaded' as 'reel' | 'uploaded',
+        uploadedVideoUrl: 'https://uchdjdmdzuvsgqhlczwk.supabase.co/storage/v1/object/public/public%20media/Glasvordach_x264%20(1).mp4',
+        reelLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/',
+        highlightReelTitle: 'HIGHLIGHT-REEL',
+        highlightReelText: 'Dieses Reel demonstriert die faszinierende Ästhetik von handgefertigtem Glas und modernem Design. Klicke auf Play, um das Video zu starten, oder teste das Like-System!',
+        sichtbarkeitTitle: 'Sichtbarkeit & Reichweite',
+        sichtbarkeitText: 'Unsere datengetriebene Reels-Strategie sorgt für überproportionales Wachstum in der Zielgruppe. Die Zahlenwerte passen sich dynamisch an.',
+      };
+      const isReel = (stats.videoType || 'uploaded') === 'reel';
+      const videoUrl = stats.uploadedVideoUrl || 'https://uchdjdmdzuvsgqhlczwk.supabase.co/storage/v1/object/public/public%20media/Glasvordach_x264%20(1).mp4';
       return {
         ...r,
-        reelLink: isReel ? (fehrmannStats.reelLink || r.reelLink) : undefined,
-        imageUrl: isReel ? r.imageUrl : (fehrmannStats.uploadedVideoUrl || r.imageUrl),
+        reelLink: isReel ? (stats.reelLink || r.reelLink) : undefined,
+        imageUrl: isReel ? r.imageUrl : videoUrl,
         mediaType: isReel ? r.mediaType : 'video',
         videoDisplayMode: isReel ? r.videoDisplayMode : 'embedded',
         stats: {
-          aufrufe: fehrmannStats.aufrufe || r.stats?.aufrufe || '+ 270 %',
-          reichweite: fehrmannStats.reichweite || r.stats?.reichweite || '+ 2.000 %',
-          interaktion: fehrmannStats.interaktion || r.stats?.interaktion || '+ 9.000 %',
+          aufrufe: stats.aufrufe || r.stats?.aufrufe || '+ 270 %',
+          reichweite: stats.reichweite || r.stats?.reichweite || '+ 2.000 %',
+          interaktion: stats.interaktion || r.stats?.interaktion || '+ 9.000 %',
         },
-        highlightReelTitle: fehrmannStats.highlightReelTitle,
-        highlightReelText: fehrmannStats.highlightReelText,
-        sichtbarkeitTitle: fehrmannStats.sichtbarkeitTitle,
-        sichtbarkeitText: fehrmannStats.sichtbarkeitText,
+        highlightReelTitle: stats.highlightReelTitle || 'HIGHLIGHT-REEL',
+        highlightReelText: stats.highlightReelText || 'Dieses Reel demonstriert die faszinierende Ästhetik von handgefertigtem Glas und modernem Design. Klicke auf Play, um das Video zu starten, oder teste das Like-System!',
+        sichtbarkeitTitle: stats.sichtbarkeitTitle || 'Sichtbarkeit & Reichweite',
+        sichtbarkeitText: stats.sichtbarkeitText || 'Unsere datengetriebene Reels-Strategie sorgt für überproportionales Wachstum in der Zielgruppe. Die Zahlenwerte passen sich dynamisch an.',
       } as ClientReference;
     }
     return r;

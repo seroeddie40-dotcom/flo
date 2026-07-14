@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError, uploadFileToStorage, resolveChunkedUrl } from '../lib/firebase';
 import { loadLandingPageData, saveLandingPageData, DEFAULT_PAGE_DATA, setLocalCache } from '../lib/cmsStore';
-import { LandingPageData, Service, Tool, ClientReference, ProcessStep, ColorConfig } from '../types';
+import { LandingPageData, Service, Tool, ClientReference, ProcessStep, ColorConfig, ServicesSectionConfig } from '../types';
 import ImageUploader from './ImageUploader';
 import DocumentUploader from './DocumentUploader';
 import VideoUploader from './VideoUploader';
