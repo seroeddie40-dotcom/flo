@@ -170,25 +170,31 @@ export default function ServicesList({
                   <span>HAUPTLEISTUNG — {pService.label}</span>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-start relative z-10 pointer-events-none">
-                  {/* Icon section */}
-                  <div className="p-4 bg-accent/15 rounded-2xl text-accent border-2 border-accent/30 shrink-0 group-hover:bg-accent/25 group-hover:border-accent transition-all duration-300 shadow-lg shadow-black/30">
-                    <PrimaryIcon className="w-10 h-10 md:w-12 md:h-12" />
+                <div className="flex flex-col gap-6 relative z-10 pointer-events-none">
+                  {/* Top Row: Icon and Info */}
+                  <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+                    {/* Icon section */}
+                    <div className="p-4 bg-accent/15 rounded-2xl text-accent border-2 border-accent/30 shrink-0 group-hover:bg-accent/25 group-hover:border-accent transition-all duration-300 shadow-lg shadow-black/30">
+                      <PrimaryIcon className="w-10 h-10 md:w-12 md:h-12" />
+                    </div>
+
+                    <div className="flex-1 pointer-events-none">
+                      <div className="flex items-center gap-2 mb-2 font-mono text-[10px] text-accent font-black tracking-[0.2em] uppercase">
+                        <span>✓ PRESTIGE & EXKLUSIVITÄT</span>
+                      </div>
+                      <h3 className="font-display text-2xl sm:text-3.5xl font-black text-white uppercase tracking-wide mb-3 group-hover:text-accent transition-colors leading-tight">
+                        {pService.title}
+                      </h3>
+                      <p className="text-[#e6f4ff] text-base md:text-lg max-w-4xl leading-relaxed">
+                        {pService.description}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex-1 pointer-events-none">
-                    <div className="flex items-center gap-2 mb-2 font-mono text-[10px] text-accent font-black tracking-[0.2em] uppercase">
-                      <span>✓ PRESTIGE & EXKLUSIVITÄT</span>
-                    </div>
-                    <h3 className="font-display text-2xl sm:text-3.5xl font-black text-white uppercase tracking-wide mb-3 group-hover:text-accent transition-colors leading-tight">
-                      {pService.title}
-                    </h3>
-                    <p className="text-[#e6f4ff] text-base md:text-lg max-w-4xl leading-relaxed">
-                      {pService.description}
-                    </p>
-
-                    {/* Specific features under this spotlight service */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+                  {/* Bottom section: Features grid & stand-alone inquiry button */}
+                  <div className="md:pl-20 space-y-6">
+                    {/* Specific features under this spotlight service arranged in 2 columns on desktop */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                       {features.map((feature, fIdx) => (
                         <div 
                           key={fIdx} 
@@ -199,19 +205,20 @@ export default function ServicesList({
                         </div>
                       ))}
                     </div>
-                  </div>
 
-                  <div className="w-full lg:w-auto shrink-0 pt-4 lg:pt-0 pointer-events-auto lg:self-end lg:mb-[60px]">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenBooking();
-                      }}
-                      className="w-full lg:w-auto py-4 px-10 bg-accent text-black font-display text-xs tracking-widest font-black uppercase rounded-xl hover:bg-[#ebd500] cursor-pointer shadow-[0_4px_20px_rgba(255,204,0,0.4)] transition-all hover:scale-[1.04] active:scale-[0.96] flex items-center justify-center gap-2 group-hover:shadow-[0_0_30px_rgba(255,204,0,0.8)]"
-                    >
-                      Jetzt anfragen
-                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-                    </button>
+                    {/* Inquiry Button standing alone below the grid */}
+                    <div className="w-full pt-2 pointer-events-auto">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenBooking();
+                        }}
+                        className="w-full py-4 px-10 bg-accent text-black font-display text-xs tracking-widest font-black uppercase rounded-xl hover:bg-[#ebd500] cursor-pointer shadow-[0_4px_20px_rgba(255,204,0,0.4)] transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 group-hover:shadow-[0_0_30px_rgba(255,204,0,0.8)]"
+                      >
+                        Jetzt anfragen
+                        <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
