@@ -88,10 +88,10 @@ export const REFERENCES: ClientReference[] = [
       interaktion: '+ 9.000 %'
     },
     postImages: [
-      { imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' },
-      { imageUrl: 'https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' },
-      { imageUrl: 'https://images.unsplash.com/photo-1541123437800-1bb1317badc2?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' },
-      { imageUrl: 'https://images.unsplash.com/photo-1617806118233-18e1db207faf?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/' }
+      { imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/reel/DaS9nyUMUEg/', type: 'reel', title: 'Glasvordach Highlights' },
+      { imageUrl: 'https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/p/DaS9nyUMUEg/', type: 'post', title: 'Detailaufnahme Duschwand' },
+      { imageUrl: 'https://images.unsplash.com/photo-1541123437800-1bb1317badc2?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/stories/highlights/123456789/', type: 'story', title: 'Event Story Impressionen' },
+      { imageUrl: 'https://images.unsplash.com/photo-1617806118233-18e1db207faf?w=400&auto=format&fit=crop&q=60', instagramLink: 'https://www.instagram.com/p/DaS9nyUMUEg/', type: 'post', title: 'Spiegel-Design Spezial' }
     ]
   },
   {

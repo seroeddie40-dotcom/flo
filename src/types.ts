@@ -13,6 +13,13 @@ export interface Tool {
   iconName: 'Canva' | 'Drive' | 'CapCut' | 'Instagram';
 }
 
+export interface PostImage {
+  imageUrl: string;
+  instagramLink: string;
+  type?: 'post' | 'reel' | 'story';
+  title?: string;
+}
+
 export interface ClientReference {
   name: string;
   status: 'freigegeben' | 'ausstehend' | 'klaerung';
@@ -29,10 +36,7 @@ export interface ClientReference {
     role: string;
   };
   reelPosition?: 'left' | 'right';
-  postImages?: {
-    imageUrl: string;
-    instagramLink: string;
-  }[];
+  postImages?: PostImage[];
   showStats?: boolean;
   stats?: {
     aufrufe: string;

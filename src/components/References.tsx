@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Quote, Play, Pause, Heart, MessageCircle, Send, Sparkles, ExternalLink, ShieldCheck, X, Image, Instagram } from 'lucide-react';
+import { Quote, Play, Pause, Heart, MessageCircle, Send, Sparkles, ExternalLink, ShieldCheck, X, Image, Instagram, Smartphone, Film, Camera } from 'lucide-react';
 import { REFERENCES } from '../data';
 import { ClientReference } from '../types';
 import { resolveChunkedUrl } from '../lib/firebase';
@@ -374,60 +374,94 @@ function ReferenceCard({ refData, idx, onOpenModal }: ReferenceCardProps) {
           </div>
         </div>
 
-        {/* Beitragsbilder (Post Images) Block */}
+        {/* Beitragsbilder, Reels & Storys Block */}
         <div className="col-span-1 lg:col-span-6 space-y-4">
           <div className="text-center lg:text-left">
             <span className="font-mono text-[10px] text-accent tracking-[0.2em] uppercase block">
-              INSTAGRAM BEITRÄGE
+              INSTAGRAM CONTENT
             </span>
             <h3 className="font-display text-xl font-bold text-white uppercase tracking-wider">
-              Beitragsbilder & Reels
+              Beiträge, Reels & Storys
             </h3>
             <p className="text-xs text-[#cce9ff]/75 leading-relaxed max-w-md mx-auto lg:mx-0 mt-1">
-              Klicke auf eines der Beitragsbilder, um direkt zum entsprechenden Originalbeitrag auf Instagram zu gelangen.
+              Klicke auf eine Story, ein Reel oder einen Beitrag, um direkt zum entsprechenden Originalinhalt auf Instagram zu gelangen.
             </p>
           </div>
 
           {(!refData.postImages || refData.postImages.length === 0) ? (
             <div className="p-8 rounded-2xl bg-[#002d47]/30 border border-dashed border-[#014e7a]/40 text-center flex flex-col items-center justify-center">
               <Image className="w-8 h-8 text-[#014e7a]/60 mb-2" />
-              <p className="text-xs text-[#cce9ff]/50">Keine Beitragsbilder hochgeladen.</p>
+              <p className="text-xs text-[#cce9ff]/50">Keine Instagram-Inhalte hochgeladen.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 max-w-md mx-auto lg:mx-0">
-              {refData.postImages.map((img, imgIdx) => (
-                <motion.a
-                  key={imgIdx}
-                  href={img.instagramLink || refData.reelLink || 'https://instagram.com/'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative aspect-square bg-[#001c2e] border border-[#014e7a]/30 rounded-2xl overflow-hidden shadow-lg block hover:border-accent hover:shadow-[#014e7a]/45 transition-all duration-300"
-                  whileHover={{ scale: 1.03 }}
-                >
-                  {img.imageUrl ? (
-                    <img
-                      src={resolveChunkedUrl(img.imageUrl)}
-                      alt={`Beitrag von ${refData.name}`}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#002d47]/60">
-                      <Image className="w-8 h-8 text-white/20" />
+              {refData.postImages.map((img, imgIdx) => {
+                const itemType = img.type || 'post';
+
+                return (
+                  <motion.a
+                    key={imgIdx}
+                    href={img.instagramLink || refData.reelLink || 'https://instagram.com/'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative aspect-square bg-[#001c2e] border border-[#014e7a]/30 rounded-2xl overflow-hidden shadow-lg block hover:border-accent hover:shadow-[#014e7a]/45 transition-all duration-300"
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    {img.imageUrl ? (
+                      <img
+                        src={resolveChunkedUrl(img.imageUrl)}
+                        alt={img.title || `Instagram Inhalt von ${refData.name}`}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-[#002d47]/60">
+                        <Image className="w-8 h-8 text-white/20" />
+                      </div>
+                    )}
+
+                    {/* Permanent Format Badge in Top Left */}
+                    <div className="absolute top-2.5 left-2.5 z-10">
+                      <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white shadow-md backdrop-blur-md ${
+                        itemType === 'story'
+                          ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 border border-rose-400/40'
+                          : itemType === 'reel'
+                          ? 'bg-purple-600/90 border border-purple-400/40'
+                          : 'bg-[#0073aa]/90 border border-blue-400/40'
+                      }`}>
+                        {itemType === 'story' && <Smartphone className="w-2.5 h-2.5" />}
+                        {itemType === 'reel' && <Film className="w-2.5 h-2.5" />}
+                        {itemType === 'post' && <Camera className="w-2.5 h-2.5" />}
+                        <span>{itemType === 'story' ? 'STORY' : itemType === 'reel' ? 'REEL' : 'BEITRAG'}</span>
+                      </span>
                     </div>
-                  )}
-                  
-                  {/* Hover Overlay with Link icon and Action indicator */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2 transition-all duration-300">
-                    <div className="p-2 rounded-full bg-accent text-black shadow">
-                      <ExternalLink className="w-4 h-4 stroke-[2.5]" />
+
+                    {/* Optional Title Label at Bottom if provided */}
+                    {img.title && (
+                      <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10 transition-opacity duration-300 group-hover:opacity-30">
+                        <p className="text-[10px] font-semibold text-white/90 truncate px-1">
+                          {img.title}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Hover Overlay with Link icon and Action indicator */}
+                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2 transition-all duration-300 z-20 p-2 text-center">
+                      <div className="p-2 rounded-full bg-accent text-black shadow">
+                        <ExternalLink className="w-4 h-4 stroke-[2.5]" />
+                      </div>
+                      {img.title ? (
+                        <p className="text-xs font-bold text-white line-clamp-2 px-1">
+                          {img.title}
+                        </p>
+                      ) : null}
+                      <span className="text-[10px] font-bold text-accent uppercase tracking-widest font-sans">
+                        Auf Instagram ansehen
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold text-white uppercase tracking-widest font-sans">
-                      Instagram
-                    </span>
-                  </div>
-                </motion.a>
-              ))}
+                  </motion.a>
+                );
+              })}
             </div>
           )}
         </div>

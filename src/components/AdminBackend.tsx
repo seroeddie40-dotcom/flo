@@ -42,7 +42,10 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  Instagram
+  Instagram,
+  Smartphone,
+  Film,
+  Camera
 } from 'lucide-react';
 import { adjustBrightness } from '../lib/colorUtils';
 
@@ -3130,91 +3133,188 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                                       </div>
                                     </div>
 
-                                    {/* Beitragsbilder List */}
-                                    <div className="bg-white p-3 rounded-lg border border-zinc-200 space-y-3">
+                                    {/* Beitragsbilder & Storys List */}
+                                    <div className="bg-white p-3.5 rounded-lg border border-zinc-200 space-y-3">
                                       <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Beitragsbilder</span>
+                                        <span className="text-xs font-bold text-zinc-700 uppercase tracking-wider flex items-center gap-1.5">
+                                          <Instagram className="w-3.5 h-3.5 text-[#0073aa]" />
+                                          <span>Instagram-Inhalte (Beiträge, Reels & Storys)</span>
+                                        </span>
                                         <button
                                           type="button"
                                           onClick={() => {
                                             const currentImages = ref.postImages || [];
-                                            updateReference(idx, { postImages: [...currentImages, { imageUrl: '', instagramLink: '' }] });
+                                            updateReference(idx, { postImages: [...currentImages, { imageUrl: '', instagramLink: '', type: 'post' }] });
                                           }}
-                                          className="text-xs text-[#0073aa] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                                          className="text-xs text-[#0073aa] font-bold hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 px-2.5 py-1 rounded border border-blue-200 hover:bg-blue-100 transition-colors"
                                         >
                                           <Plus className="w-3.5 h-3.5" />
-                                          <span>Bild hinzufügen</span>
+                                          <span>Inhalt / Story hinzufügen</span>
                                         </button>
                                       </div>
 
                                       <p className="text-[11px] text-zinc-500">
-                                        Füge hier Beitragsbilder hinzu, die rechts/links neben dem Reel angezeigt werden. Jedes Bild kann mit einem eigenen Instagram-Link versehen werden.
+                                        Füge hier Beitragsbilder, Reels oder Instagram Storys hinzu. Du kannst für jeden Eintrag festlegen, ob es sich um ein Beitragsbild, ein Reel oder eine Story handelt und einen Direktlink hinterlegen.
                                       </p>
 
                                       <div className="space-y-4 pt-1">
                                         {(!ref.postImages || ref.postImages.length === 0) ? (
                                           <div className="text-center py-6 border border-dashed border-zinc-200 rounded-lg bg-zinc-50/50">
-                                            <p className="text-xs text-zinc-400">Keine Beitragsbilder hinzugefügt.</p>
+                                            <p className="text-xs text-zinc-400">Keine Instagram-Inhalte oder Storys hinzugefügt.</p>
                                           </div>
                                         ) : (
                                           <div className="grid grid-cols-1 gap-4">
-                                            {ref.postImages.map((img, imgIdx) => (
-                                              <div key={imgIdx} className="p-3 border border-zinc-200 rounded-lg bg-zinc-50/30 space-y-3 relative group">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const currentImages = (ref.postImages || []).filter((_, i) => i !== imgIdx);
-                                                    updateReference(idx, { postImages: currentImages });
-                                                  }}
-                                                  className="absolute top-2 right-2 text-zinc-400 hover:text-red-600 p-1 bg-white hover:bg-red-50 border border-zinc-200 rounded transition-all cursor-pointer"
-                                                  title="Bild entfernen"
-                                                >
-                                                  <Trash className="w-3.5 h-3.5" />
-                                                </button>
+                                            {ref.postImages.map((img, imgIdx) => {
+                                              const itemType = img.type || 'post';
 
-                                                <div className="flex flex-col sm:flex-row gap-4 items-start">
-                                                  {/* Image preview */}
-                                                  <div className="w-20 h-20 shrink-0 border border-zinc-200 bg-white rounded overflow-hidden flex items-center justify-center">
-                                                    {img.imageUrl ? (
-                                                      <img src={resolveChunkedUrl(img.imageUrl)} alt={`Beitrag ${imgIdx + 1}`} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                      <ImageIcon className="w-6 h-6 text-zinc-300" />
-                                                    )}
-                                                  </div>
+                                              return (
+                                                <div key={imgIdx} className="p-3.5 border border-zinc-200 rounded-lg bg-zinc-50/50 space-y-3 relative group">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const currentImages = (ref.postImages || []).filter((_, i) => i !== imgIdx);
+                                                      updateReference(idx, { postImages: currentImages });
+                                                    }}
+                                                    className="absolute top-3 right-3 text-zinc-400 hover:text-red-600 p-1 bg-white hover:bg-red-50 border border-zinc-200 rounded transition-all cursor-pointer z-10"
+                                                    title="Inhalt entfernen"
+                                                  >
+                                                    <Trash className="w-3.5 h-3.5" />
+                                                  </button>
 
-                                                  <div className="flex-1 w-full space-y-3">
-                                                    <ImageUploader
-                                                      id={`ref-${idx}-post-${imgIdx}`}
-                                                      label={`Beitragsbild ${imgIdx + 1}`}
-                                                      currentValue={img.imageUrl}
-                                                      onChange={(val) => {
-                                                        const currentImages = [...(ref.postImages || [])];
-                                                        currentImages[imgIdx] = { ...currentImages[imgIdx], imageUrl: val };
-                                                        updateReference(idx, { postImages: currentImages });
-                                                      }}
-                                                    />
-
-                                                    <div>
-                                                      <label className="block text-[11px] font-bold text-zinc-600 mb-1 flex items-center gap-1">
-                                                        <Link className="w-3 h-3 text-[#0073aa]" />
-                                                        <span>Instagram-Link für dieses Bild (z.B. Direkt zum Reel)</span>
-                                                      </label>
-                                                      <input
-                                                        type="text"
-                                                        value={img.instagramLink || ''}
-                                                        onChange={(e) => {
+                                                  {/* Typ-Auswahl (Beitrag vs. Reel vs. Story) */}
+                                                  <div>
+                                                    <label className="block text-[11px] font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
+                                                      Format / Typ wählen:
+                                                    </label>
+                                                    <div className="grid grid-cols-3 gap-2 max-w-md">
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
                                                           const currentImages = [...(ref.postImages || [])];
-                                                          currentImages[imgIdx] = { ...currentImages[imgIdx], instagramLink: e.target.value };
+                                                          currentImages[imgIdx] = { ...currentImages[imgIdx], type: 'post' };
                                                           updateReference(idx, { postImages: currentImages });
                                                         }}
-                                                        placeholder="https://www.instagram.com/reel/..."
-                                                        className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white font-mono"
+                                                        className={`py-1.5 px-2.5 rounded text-xs font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                                                          itemType === 'post'
+                                                            ? 'bg-[#0073aa] text-white border-[#0073aa] shadow-sm'
+                                                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
+                                                        }`}
+                                                      >
+                                                        <Camera className="w-3.5 h-3.5" />
+                                                        <span>Beitrag</span>
+                                                      </button>
+
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          const currentImages = [...(ref.postImages || [])];
+                                                          currentImages[imgIdx] = { ...currentImages[imgIdx], type: 'reel' };
+                                                          updateReference(idx, { postImages: currentImages });
+                                                        }}
+                                                        className={`py-1.5 px-2.5 rounded text-xs font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                                                          itemType === 'reel'
+                                                            ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                                                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
+                                                        }`}
+                                                      >
+                                                        <Film className="w-3.5 h-3.5" />
+                                                        <span>Reel</span>
+                                                      </button>
+
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          const currentImages = [...(ref.postImages || [])];
+                                                          currentImages[imgIdx] = { ...currentImages[imgIdx], type: 'story' };
+                                                          updateReference(idx, { postImages: currentImages });
+                                                        }}
+                                                        className={`py-1.5 px-2.5 rounded text-xs font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                                                          itemType === 'story'
+                                                            ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white border-rose-500 shadow-sm'
+                                                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
+                                                        }`}
+                                                      >
+                                                        <Smartphone className="w-3.5 h-3.5" />
+                                                        <span>Story</span>
+                                                      </button>
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="flex flex-col sm:flex-row gap-4 items-start pt-1">
+                                                    {/* Image preview with type badge */}
+                                                    <div className="w-20 h-24 shrink-0 border border-zinc-200 bg-white rounded overflow-hidden flex items-center justify-center relative shadow-sm">
+                                                      {img.imageUrl ? (
+                                                        <img src={resolveChunkedUrl(img.imageUrl)} alt={`Inhalt ${imgIdx + 1}`} className="w-full h-full object-cover" />
+                                                      ) : (
+                                                        <ImageIcon className="w-6 h-6 text-zinc-300" />
+                                                      )}
+                                                      <span className={`absolute bottom-0 inset-x-0 text-[9px] font-black text-center py-0.5 uppercase tracking-wider text-white ${
+                                                        itemType === 'story' ? 'bg-gradient-to-r from-amber-500 to-rose-600' :
+                                                        itemType === 'reel' ? 'bg-purple-600' : 'bg-[#0073aa]'
+                                                      }`}>
+                                                        {itemType === 'story' ? 'STORY' : itemType === 'reel' ? 'REEL' : 'BEITRAG'}
+                                                      </span>
+                                                    </div>
+
+                                                    <div className="flex-1 w-full space-y-3">
+                                                      <ImageUploader
+                                                        id={`ref-${idx}-post-${imgIdx}`}
+                                                        label={`Vorschaubild für ${itemType === 'story' ? 'Story' : itemType === 'reel' ? 'Reel' : 'Beitrag'} ${imgIdx + 1}`}
+                                                        currentValue={img.imageUrl}
+                                                        onChange={(val) => {
+                                                          const currentImages = [...(ref.postImages || [])];
+                                                          currentImages[imgIdx] = { ...currentImages[imgIdx], imageUrl: val };
+                                                          updateReference(idx, { postImages: currentImages });
+                                                        }}
                                                       />
+
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div>
+                                                          <label className="block text-[11px] font-bold text-zinc-600 mb-1 flex items-center gap-1">
+                                                            <Link className="w-3 h-3 text-[#0073aa]" />
+                                                            <span>
+                                                              {itemType === 'story' ? 'Instagram Story Link' : itemType === 'reel' ? 'Instagram Reel Link' : 'Instagram Beitrag Link'}
+                                                            </span>
+                                                          </label>
+                                                          <input
+                                                            type="text"
+                                                            value={img.instagramLink || ''}
+                                                            onChange={(e) => {
+                                                              const currentImages = [...(ref.postImages || [])];
+                                                              currentImages[imgIdx] = { ...currentImages[imgIdx], instagramLink: e.target.value };
+                                                              updateReference(idx, { postImages: currentImages });
+                                                            }}
+                                                            placeholder={
+                                                              itemType === 'story' ? 'https://www.instagram.com/stories/highlights/...' :
+                                                              itemType === 'reel' ? 'https://www.instagram.com/reel/...' :
+                                                              'https://www.instagram.com/p/...'
+                                                            }
+                                                            className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white font-mono"
+                                                          />
+                                                        </div>
+
+                                                        <div>
+                                                          <label className="block text-[11px] font-bold text-zinc-600 mb-1">
+                                                            Beschriftung / Titel (optional)
+                                                          </label>
+                                                          <input
+                                                            type="text"
+                                                            value={img.title || ''}
+                                                            onChange={(e) => {
+                                                              const currentImages = [...(ref.postImages || [])];
+                                                              currentImages[imgIdx] = { ...currentImages[imgIdx], title: e.target.value };
+                                                              updateReference(idx, { postImages: currentImages });
+                                                            }}
+                                                            placeholder="z.B. Event Impressionen"
+                                                            className="w-full p-2 border border-zinc-300 rounded text-xs text-zinc-900 bg-white"
+                                                          />
+                                                        </div>
+                                                      </div>
                                                     </div>
                                                   </div>
                                                 </div>
-                                              </div>
-                                            ))}
+                                              );
+                                            })}
                                           </div>
                                         )}
                                       </div>
