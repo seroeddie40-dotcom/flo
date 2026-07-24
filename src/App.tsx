@@ -6,6 +6,7 @@ import { PhoneCall, Calendar, ArrowUpRight, MessageSquare, Menu, X, ArrowDown, K
 import CookieBanner from './components/CookieBanner';
 import CalendlyModal from './components/CalendlyModal';
 import ServicesList from './components/ServicesList';
+import ProjectSupport from './components/ProjectSupport';
 import AboutSection from './components/AboutSection';
 import References from './components/References';
 import ProcessTimeline from './components/ProcessTimeline';
@@ -367,6 +368,12 @@ export default function App() {
         onOpenBooking={() => setIsBookingOpen(true)} 
         services={pageData?.services} 
         sectionConfig={pageData?.servicesSection} 
+      />
+
+      {/* 4. Block 2.5: Projektbezogene Betreuung */}
+      <ProjectSupport
+        onOpenBooking={() => setIsBookingOpen(true)}
+        config={pageData?.projectSupport}
       />
 
       {/* 5. Block 4: Referenzen (Kunden & Testimonial) */}

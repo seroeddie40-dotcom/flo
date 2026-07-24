@@ -169,6 +169,22 @@ export interface TrustBlockConfig {
   buttonText?: string;
 }
 
+export interface ProjectSupportPackage {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export interface ProjectSupportConfig {
+  enabled?: boolean;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  packages?: ProjectSupportPackage[];
+  noteText?: string;
+  buttonText?: string;
+}
+
 export interface LandingPageData {
   isFallback?: boolean;
   hero: HeroConfig;
@@ -181,6 +197,7 @@ export interface LandingPageData {
   contactImage?: BetweenSectionImageConfig;
   onePager?: OnePagerConfig;
   servicesSection?: ServicesSectionConfig;
+  projectSupport?: ProjectSupportConfig;
   colors?: ColorConfig;
   about?: AboutSectionConfig;
   trustBlock?: TrustBlockConfig;

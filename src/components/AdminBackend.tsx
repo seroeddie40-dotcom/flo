@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType, logSafeFirebaseError, isQuotaError, isOfflineError, uploadFileToStorage, resolveChunkedUrl } from '../lib/firebase';
 import { loadLandingPageData, saveLandingPageData, DEFAULT_PAGE_DATA, setLocalCache } from '../lib/cmsStore';
-import { LandingPageData, Service, Tool, ClientReference, ProcessStep, ColorConfig, ServicesSectionConfig } from '../types';
+import { LandingPageData, Service, Tool, ClientReference, ProcessStep, ColorConfig, ServicesSectionConfig, ProjectSupportConfig, ProjectSupportPackage } from '../types';
 import ImageUploader from './ImageUploader';
 import DocumentUploader from './DocumentUploader';
 import VideoUploader from './VideoUploader';
@@ -693,6 +693,96 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
       servicesSection: {
         ...section,
         descriptions
+      }
+    });
+  };
+
+  // Project Support Section Handlers
+  const updateProjectSupportField = (field: keyof ProjectSupportConfig, value: any) => {
+    if (!cmsData) return;
+    const ps = cmsData.projectSupport || {
+      enabled: true,
+      eyebrow: 'ERGÄNZUNG ZUR INSTAGRAM-DAUERBETREUUNG',
+      title: 'Projektbezogene Betreuung',
+      description: 'Nicht jeder braucht eine dauerhafte Betreuung. Manchmal reicht ein einzelner Anlass, ein Event, eine Kampagne, ein Launch. Auch dafür bin ich buchbar, ohne dass daraus automatisch ein Dauerauftrag wird.',
+      packages: [],
+      noteText: 'Der Umfang und das Honorar richten sich individuell nach dem jeweiligen Projekt.',
+      buttonText: 'Projekt anfragen'
+    };
+    setCmsData({
+      ...cmsData,
+      projectSupport: {
+        ...ps,
+        [field]: value
+      }
+    });
+  };
+
+  const updateProjectSupportPackageField = (index: number, field: 'title' | 'description', value: string) => {
+    if (!cmsData) return;
+    const ps = cmsData.projectSupport || {
+      enabled: true,
+      eyebrow: 'ERGÄNZUNG ZUR INSTAGRAM-DAUERBETREUUNG',
+      title: 'Projektbezogene Betreuung',
+      description: 'Nicht jeder braucht eine dauerhafte Betreuung. Manchmal reicht ein einzelner Anlass, ein Event, eine Kampagne, ein Launch. Auch dafür bin ich buchbar, ohne dass daraus automatisch ein Dauerauftrag wird.',
+      packages: [],
+      noteText: 'Der Umfang und das Honorar richten sich individuell nach dem jeweiligen Projekt.',
+      buttonText: 'Projekt anfragen'
+    };
+    const packages = [...(ps.packages || [])];
+    if (packages[index]) {
+      packages[index] = {
+        ...packages[index],
+        [field]: value
+      };
+    }
+    setCmsData({
+      ...cmsData,
+      projectSupport: {
+        ...ps,
+        packages
+      }
+    });
+  };
+
+  const addProjectSupportPackage = () => {
+    if (!cmsData) return;
+    const ps = cmsData.projectSupport || {
+      enabled: true,
+      eyebrow: 'ERGÄNZUNG ZUR INSTAGRAM-DAUERBETREUUNG',
+      title: 'Projektbezogene Betreuung',
+      description: 'Nicht jeder braucht eine dauerhafte Betreuung. Manchmal reicht ein einzelner Anlass, ein Event, eine Kampagne, ein Launch. Auch dafür bin ich buchbar, ohne dass daraus automatisch ein Dauerauftrag wird.',
+      packages: [],
+      noteText: 'Der Umfang und das Honorar richten sich individuell nach dem jeweiligen Projekt.',
+      buttonText: 'Projekt anfragen'
+    };
+    const packages = [
+      ...(ps.packages || []),
+      {
+        id: `pkg-${Date.now()}`,
+        title: 'Neues Paket',
+        description: 'Kurze Beschreibung des Pakets.'
+      }
+    ];
+    setCmsData({
+      ...cmsData,
+      projectSupport: {
+        ...ps,
+        packages
+      }
+    });
+  };
+
+  const deleteProjectSupportPackage = (index: number) => {
+    if (!cmsData) return;
+    const ps = cmsData.projectSupport;
+    if (!ps || !ps.packages) return;
+    const packages = ps.packages.filter((_, i) => i !== index);
+    setCmsData({
+      ...cmsData,
+      projectSupport: {
+        ...ps,
+        packages
       }
     });
   };
@@ -2391,6 +2481,159 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                             </div>
                           </div>
                         )}
+                      </div>
+
+                      {/* Section 4: Projektbezogene Betreuung */}
+                      <div className="bg-white border border-zinc-200 p-6 rounded-xl shadow-sm space-y-6">
+                        <div className="flex justify-between items-center border-b border-zinc-200 pb-3">
+                          <div>
+                            <h3 className="text-base font-bold text-zinc-900">Projektbezogene Betreuung (Events, Kampagnen, Einzelbeiträge)</h3>
+                            <p className="text-xs text-zinc-500 mt-1">
+                              Konfiguriere die Sektion für flexible Einzelprojekte & Event-Begleitungen.
+                            </p>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={cmsData.projectSupport?.enabled !== false}
+                              onChange={(e) => updateProjectSupportField('enabled', e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0073aa]"></div>
+                            <span className="ml-2 text-xs font-bold text-zinc-700">Aktiv</span>
+                          </label>
+                        </div>
+
+                        {cmsData.projectSupport?.enabled !== false && (() => {
+                          const ps = cmsData.projectSupport || {
+                            enabled: true,
+                            eyebrow: 'ERGÄNZUNG ZUR INSTAGRAM-DAUERBETREUUNG',
+                            title: 'Projektbezogene Betreuung',
+                            description: 'Nicht jeder braucht eine dauerhafte Betreuung. Manchmal reicht ein einzelner Anlass, ein Event, eine Kampagne, ein Launch. Auch dafür bin ich buchbar, ohne dass daraus automatisch ein Dauerauftrag wird.',
+                            packages: [
+                              { id: 'einzelbeitrag', title: 'Einzelbeitrag', description: 'Ein einzelner Post oder Reel zu einem konkreten Anlass.' },
+                              { id: 'event-tagespaket', title: 'Event-Tagespaket', description: 'Ich bin vor Ort, drehe und liefere mehrere fertige Formate.' },
+                              { id: 'live-begleitung', title: 'Live-Begleitung', description: 'Ich begleite dich live direkt in deinen eigenen Stories, echt und ungekünstelt statt inszeniert.' },
+                              { id: 'kampagnenpaket', title: 'Kampagnenpaket', description: 'Für einen begrenzten Zeitraum rund um ein Ereignis.' }
+                            ],
+                            noteText: 'Der Umfang und das Honorar richten sich individuell nach dem jeweiligen Projekt.',
+                            buttonText: 'Projekt anfragen'
+                          };
+                          const packages = ps.packages || [];
+
+                          return (
+                            <div className="space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Über-Überschrift (Eyebrow)</label>
+                                  <input
+                                    type="text"
+                                    value={ps.eyebrow ?? 'ERGÄNZUNG ZUR INSTAGRAM-DAUERBETREUUNG'}
+                                    onChange={(e) => updateProjectSupportField('eyebrow', e.target.value)}
+                                    className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Hauptüberschrift (Title)</label>
+                                  <input
+                                    type="text"
+                                    value={ps.title ?? 'Projektbezogene Betreuung'}
+                                    onChange={(e) => updateProjectSupportField('title', e.target.value)}
+                                    className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-extrabold"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Einleitungstext</label>
+                                <textarea
+                                  value={ps.description ?? 'Nicht jeder braucht eine dauerhafte Betreuung. Manchmal reicht ein einzelner Anlass, ein Event, eine Kampagne, ein Launch. Auch dafür bin ich buchbar, ohne dass daraus automatisch ein Dauerauftrag wird.'}
+                                  onChange={(e) => updateProjectSupportField('description', e.target.value)}
+                                  rows={3}
+                                  className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 leading-relaxed"
+                                />
+                              </div>
+
+                              {/* Packages list */}
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                  <span className="text-xs font-bold text-zinc-700 uppercase tracking-wider">
+                                    Angebotsformate ({packages.length})
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={addProjectSupportPackage}
+                                    className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-[#0073aa] hover:bg-[#005177] text-white rounded text-[11px] font-bold cursor-pointer transition-all duration-200"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" /> Paket hinzufügen
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {packages.map((pkg, pIdx) => (
+                                    <div key={pkg.id || pIdx} className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-3 relative group">
+                                      <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
+                                        <span className="text-xs font-bold text-zinc-600 uppercase font-mono">Format #{pIdx + 1}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => deleteProjectSupportPackage(pIdx)}
+                                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                          title="Paket löschen"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+
+                                      <div>
+                                        <label className="block text-[11px] font-bold text-zinc-600 uppercase mb-1">Titel</label>
+                                        <input
+                                          type="text"
+                                          value={pkg.title}
+                                          onChange={(e) => updateProjectSupportPackageField(pIdx, 'title', e.target.value)}
+                                          className="w-full p-2 border border-zinc-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#0073aa] font-bold text-zinc-900"
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label className="block text-[11px] font-bold text-zinc-600 uppercase mb-1">Beschreibung</label>
+                                        <textarea
+                                          value={pkg.description}
+                                          onChange={(e) => updateProjectSupportPackageField(pIdx, 'description', e.target.value)}
+                                          rows={2}
+                                          className="w-full p-2 border border-zinc-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-800"
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                <div>
+                                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Hinweis unter den Paketen</label>
+                                  <input
+                                    type="text"
+                                    value={ps.noteText ?? 'Der Umfang und das Honorar richten sich individuell nach dem jeweiligen Projekt.'}
+                                    onChange={(e) => updateProjectSupportField('noteText', e.target.value)}
+                                    className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 italic"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Button-Text</label>
+                                  <input
+                                    type="text"
+                                    value={ps.buttonText ?? 'Projekt anfragen'}
+                                    onChange={(e) => updateProjectSupportField('buttonText', e.target.value)}
+                                    className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-bold"
+                                  />
+                                </div>
+                              </div>
+
+                            </div>
+                          );
+                        })()}
                       </div>
 
                     </div>

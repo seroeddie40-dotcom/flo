@@ -154,6 +154,36 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     upgradeBannerButtonText: 'Direkt anfragen',
     upgradeBannerButtonUrl: 'mailto:florian@floriankusche.de?subject=Website-Anfrage'
   },
+  projectSupport: {
+    enabled: true,
+    eyebrow: 'ERGÄNZUNG ZUR INSTAGRAM-DAUERBETREUUNG',
+    title: 'Projektbezogene Betreuung',
+    description: 'Nicht jeder braucht eine dauerhafte Betreuung. Manchmal reicht ein einzelner Anlass, ein Event, eine Kampagne, ein Launch. Auch dafür bin ich buchbar, ohne dass daraus automatisch ein Dauerauftrag wird.',
+    packages: [
+      {
+        id: 'einzelbeitrag',
+        title: 'Einzelbeitrag',
+        description: 'Ein einzelner Post oder Reel zu einem konkreten Anlass.'
+      },
+      {
+        id: 'event-tagespaket',
+        title: 'Event-Tagespaket',
+        description: 'Ich bin vor Ort, drehe und liefere mehrere fertige Formate.'
+      },
+      {
+        id: 'live-begleitung',
+        title: 'Live-Begleitung',
+        description: 'Ich begleite dich live direkt in deinen eigenen Stories, echt und ungekünstelt statt inszeniert.'
+      },
+      {
+        id: 'kampagnenpaket',
+        title: 'Kampagnenpaket',
+        description: 'Für einen begrenzten Zeitraum rund um ein Ereignis.'
+      }
+    ],
+    noteText: 'Der Umfang und das Honorar richten sich individuell nach dem jeweiligen Projekt.',
+    buttonText: 'Projekt anfragen'
+  },
   colors: {
     accent: '#ffcc00',
     accentBrightness: 0,
@@ -330,6 +360,13 @@ export async function loadLandingPageData(): Promise<LandingPageData> {
         servicesSection: dbData.servicesSection
           ? { ...DEFAULT_PAGE_DATA.servicesSection, ...dbData.servicesSection, descriptions: dbData.servicesSection.descriptions || DEFAULT_PAGE_DATA.servicesSection.descriptions }
           : { ...DEFAULT_PAGE_DATA.servicesSection! },
+        projectSupport: dbData.projectSupport
+          ? {
+              ...DEFAULT_PAGE_DATA.projectSupport,
+              ...dbData.projectSupport,
+              packages: dbData.projectSupport.packages || DEFAULT_PAGE_DATA.projectSupport!.packages
+            }
+          : DEFAULT_PAGE_DATA.projectSupport,
         colors: dbData.colors
           ? { ...DEFAULT_PAGE_DATA.colors, ...dbData.colors }
           : DEFAULT_PAGE_DATA.colors,
@@ -586,6 +623,13 @@ export function subscribeLandingPageData(callback: (data: LandingPageData) => vo
         servicesSection: dbData.servicesSection
           ? { ...DEFAULT_PAGE_DATA.servicesSection, ...dbData.servicesSection, descriptions: dbData.servicesSection.descriptions || DEFAULT_PAGE_DATA.servicesSection.descriptions }
           : { ...DEFAULT_PAGE_DATA.servicesSection! },
+        projectSupport: dbData.projectSupport
+          ? {
+              ...DEFAULT_PAGE_DATA.projectSupport,
+              ...dbData.projectSupport,
+              packages: dbData.projectSupport.packages || DEFAULT_PAGE_DATA.projectSupport!.packages
+            }
+          : DEFAULT_PAGE_DATA.projectSupport,
         colors: dbData.colors
           ? { ...DEFAULT_PAGE_DATA.colors, ...dbData.colors }
           : DEFAULT_PAGE_DATA.colors,
