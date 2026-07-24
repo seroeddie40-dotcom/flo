@@ -292,7 +292,11 @@ export default function ServicesList({
               </div>
             </div>
             <a
-              href={sectionConfig?.upgradeBannerButtonUrl || 'mailto:florian@floriankusche.de?subject=Website-Anfrage'}
+              href={
+                !sectionConfig?.upgradeBannerButtonUrl || sectionConfig.upgradeBannerButtonUrl === 'mailto:florian@floriankusche.de?subject=Website-Anfrage'
+                  ? 'mailto:website@floriankusche.de?subject=Website-Anfrage'
+                  : sectionConfig.upgradeBannerButtonUrl
+              }
               className="py-3 px-5 text-center text-xs tracking-widest font-black uppercase rounded-lg border border-[#ffcc00] text-[#ffcc00] hover:bg-[#ffcc00] hover:text-black hover:scale-[1.02] cursor-pointer transition-all shrink-0 font-display flex items-center justify-center"
             >
               {sectionConfig?.upgradeBannerButtonText || 'Direkt anfragen'}

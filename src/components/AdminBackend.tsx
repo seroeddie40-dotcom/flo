@@ -2475,9 +2475,9 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                                 <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Button-Link (Mailto oder URL)</label>
                                 <input
                                   type="text"
-                                  value={sectConfig.upgradeBannerButtonUrl ?? 'mailto:florian@floriankusche.de?subject=Website-Anfrage'}
+                                  value={sectConfig.upgradeBannerButtonUrl === 'mailto:florian@floriankusche.de?subject=Website-Anfrage' ? 'mailto:website@floriankusche.de?subject=Website-Anfrage' : (sectConfig.upgradeBannerButtonUrl ?? 'mailto:website@floriankusche.de?subject=Website-Anfrage')}
                                   onChange={(e) => updateServicesSectionField('upgradeBannerButtonUrl', e.target.value)}
-                                  placeholder="mailto:florian@floriankusche.de?subject=Website-Anfrage"
+                                  placeholder="mailto:website@floriankusche.de?subject=Website-Anfrage"
                                   className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-semibold font-mono"
                                 />
                               </div>

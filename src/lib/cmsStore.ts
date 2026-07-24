@@ -152,7 +152,7 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
     upgradeBannerTitle: 'DEINE WEBSITE, GENAUSO STARK WIE DEIN INSTAGRAM',
     upgradeBannerText: 'Diese Seite hier ist im Team mit meinem Spezialisten für Webdesign und Hosting entstanden. Auch bei dir arbeiten wir gemeinsam: Wir hören uns deine Idee, deine Vision und dein Ziel an und gehen dann gemeinsam in Planung und Umsetzung, Screendesign und Instagram-Auftritt aus einer Hand.',
     upgradeBannerButtonText: 'Direkt anfragen',
-    upgradeBannerButtonUrl: 'mailto:florian@floriankusche.de?subject=Website-Anfrage'
+    upgradeBannerButtonUrl: 'mailto:website@floriankusche.de?subject=Website-Anfrage'
   },
   projectSupport: {
     enabled: true,
