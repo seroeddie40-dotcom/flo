@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /#admin
+Disallow: /#wp-admin
+
+# Sitemap link for Google, Bing & DuckDuckGo
+Sitemap: https://floriankusche.de/sitemap.xml
