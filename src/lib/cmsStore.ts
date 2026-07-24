@@ -264,8 +264,8 @@ export const DEFAULT_PAGE_DATA: LandingPageData = {
 function stripLargeStrings(obj: any): any {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === 'string') {
-    // Strip Base64 or any extremely large strings (>20KB) to prevent exceeding localStorage quota (5MB)
-    if (obj.length > 20000) {
+    // Strip Base64 images/videos or any extremely large strings (>5KB) to prevent exceeding localStorage quota
+    if (obj.startsWith('data:') || obj.length > 5000) {
       return '';
     }
     return obj;
@@ -283,6 +283,24 @@ function stripLargeStrings(obj: any): any {
   return obj;
 }
 
+function clearNonEssentialStorage() {
+  try {
+    const essentialKeys = new Set(['florian_cms_cache', 'fk_cookie_consent', 'admin_logged_in_email', 'admin_logged_in_pw']);
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !essentialKeys.has(key)) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
+  } catch (err) {
+    // Ignore storage clear errors
+  }
+}
+
 export function getLocalCache(): LandingPageData | null {
   try {
     const cached = localStorage.getItem('florian_cms_cache');
@@ -291,7 +309,7 @@ export function getLocalCache(): LandingPageData | null {
       return cleanFailedPlaceholdersRecursive(parsed);
     }
   } catch (e) {
-    console.error('Error reading florian_cms_cache from localStorage:', e);
+    console.warn('Could not read florian_cms_cache from localStorage:', e);
   }
   return null;
 }
@@ -317,13 +335,19 @@ export function cleanFailedPlaceholdersRecursive(obj: any): any {
   return cleanObj;
 }
 
-
 export function setLocalCache(data: LandingPageData) {
   try {
     const stripped = stripLargeStrings(data);
     localStorage.setItem('florian_cms_cache', JSON.stringify(stripped));
   } catch (e) {
-    console.error('Error writing florian_cms_cache to localStorage:', e);
+    // Quota exceeded or storage error. Clear image chunk caches and retry once.
+    try {
+      clearNonEssentialStorage();
+      const stripped = stripLargeStrings(data);
+      localStorage.setItem('florian_cms_cache', JSON.stringify(stripped));
+    } catch (retryErr) {
+      console.warn('Notice: florian_cms_cache could not be saved to localStorage (storage quota full or disabled).', retryErr);
+    }
   }
 }
 

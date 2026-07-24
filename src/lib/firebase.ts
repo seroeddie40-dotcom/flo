@@ -202,11 +202,12 @@ export async function uploadFileAsChunks(
         
         chunkedUrlsCache[`chunked://${assetId}`] = dataUrl;
         try {
-          if (dataUrl.length < 1500000) {
+          // Only cache small images (<150KB) in localStorage to preserve quota for CMS data
+          if (dataUrl.length < 150000) {
             localStorage.setItem(`cache_chunked://${assetId}`, dataUrl);
           }
         } catch (e) {
-          // Ignore localStorage quota errors
+          // Ignore localStorage quota errors silently
         }
         resolve(`chunked://${assetId}`);
       } catch (err) {
@@ -306,7 +307,7 @@ export async function reconstructChunkedString(chunkedUrl: string): Promise<stri
   
   chunkedUrlsCache[chunkedUrl] = fullDataUrl;
   try {
-    if (fullDataUrl.length < 1500000) {
+    if (fullDataUrl.length < 150000) {
       localStorage.setItem(`cache_${chunkedUrl}`, fullDataUrl);
     }
   } catch (e) {
