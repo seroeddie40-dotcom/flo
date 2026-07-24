@@ -352,7 +352,11 @@ export default function OnePagerMockup({ config }: { config?: OnePagerConfig }) 
                     if (match) mimeType = match[1];
                   }
 
-                  const isPdf = mimeType === 'application/pdf' || url.toLowerCase().endsWith('.pdf') || mimeType.includes('pdf');
+                  const docFilename = (config?.documentFilename || '').toLowerCase();
+                  const isPdf = mimeType === 'application/pdf' || 
+                                url.toLowerCase().includes('.pdf') || 
+                                docFilename.endsWith('.pdf') || 
+                                mimeType.includes('pdf');
                   const isImage = mimeType.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(url);
                   const isText = mimeType.startsWith('text/') || url.toLowerCase().endsWith('.txt') || mimeType.includes('plain');
 

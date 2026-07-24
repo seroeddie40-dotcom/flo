@@ -1992,27 +1992,91 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
 
                     <div className="h-[1px] bg-zinc-200"></div>
 
-                    {/* DOCUMENT FILE UPLOAD CORE FIELD */}
+                    {/* DOCUMENT FILE UPLOAD & SUPABASE PDF URL FIELD */}
                     <div className="bg-zinc-50 border border-zinc-200 p-5 rounded-xl space-y-4">
                       <div>
-                        <h4 className="text-sm font-bold text-zinc-900">Echtes Dokument hochladen (*.pdf, *.txt, *.docx, *.png, *.jpg)</h4>
+                        <h4 className="text-sm font-bold text-zinc-900 flex items-center justify-between flex-wrap gap-2">
+                          <span>One-Pager / PDF Dokument hinterlegen</span>
+                          <span className="text-[10px] px-2 py-0.5 bg-[#0073aa] text-white font-mono rounded font-medium">Supabase & Externe URLs unterstützt</span>
+                        </h4>
                         <p className="text-xs text-zinc-500 mt-0.5">
-                          Lade hier das tatsächliche Handout-Dokument hoch. Falls du kein Handout hochlädst, generiert die Seite beim Button-Klick automatisch einen ansprechenden Strategie-DUMP (.txt) mit deinen aktuellen Werten.
+                          Füge hier den öffentlichen PDF-Link von deinem Supabase Storage (oder externen Speicher) ein ODER lade eine PDF-Datei direkt hoch.
                         </p>
                       </div>
 
-                      <DocumentUploader
-                        id="onepager-handout-doc"
-                        currentUrl={cmsData.onePager?.documentUrl}
-                        currentFilename={cmsData.onePager?.documentFilename}
-                        onChange={(url, filepath) => {
-                          updateOnePagerFields({
-                            documentUrl: url,
-                            documentFilename: filepath
-                          });
-                        }}
-                        label="Handout-Quelldatei für Kunden-Download"
-                      />
+                      {/* Direct Supabase / External Link Input */}
+                      <div className="space-y-1.5 bg-white p-3.5 border border-zinc-200 rounded-lg">
+                        <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider">
+                          1. Direkter Supabase / PDF-Link (URL)
+                        </label>
+                        <input
+                          type="url"
+                          value={
+                            cmsData.onePager?.documentUrl?.startsWith('data:') || cmsData.onePager?.documentUrl?.startsWith('chunked://')
+                              ? ''
+                              : (cmsData.onePager?.documentUrl ?? '')
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            let currentFn = cmsData.onePager?.documentFilename || '';
+                            if (val && (!currentFn || currentFn.endsWith('.txt'))) {
+                              try {
+                                const urlObj = new URL(val);
+                                const lastPart = urlObj.pathname.split('/').pop();
+                                if (lastPart && lastPart.includes('.')) {
+                                  currentFn = lastPart;
+                                } else {
+                                  currentFn = 'Florian_Kusche_Instagram_Strategie_OnePager.pdf';
+                                }
+                              } catch {
+                                currentFn = 'Florian_Kusche_Instagram_Strategie_OnePager.pdf';
+                              }
+                            }
+                            updateOnePagerFields({
+                              documentUrl: val,
+                              documentFilename: currentFn || 'Florian_Kusche_Instagram_Strategie_OnePager.pdf'
+                            });
+                          }}
+                          placeholder="https://xyz.supabase.co/storage/v1/object/public/documents/onepager.pdf"
+                          className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono"
+                        />
+                        <p className="text-[11px] text-zinc-500">
+                          Wenn du dein PDF bei Supabase Storage hochgeladen hast, kopiere den öffentlichen Link ("Public URL") und füge ihn hier ein.
+                        </p>
+                      </div>
+
+                      {/* Custom Download Filename */}
+                      <div className="space-y-1.5 bg-white p-3.5 border border-zinc-200 rounded-lg">
+                        <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider">
+                          Download-Dateiname für Besucher (z. B. *.pdf)
+                        </label>
+                        <input
+                          type="text"
+                          value={cmsData.onePager?.documentFilename ?? 'Florian_Kusche_Instagram_Strategie_OnePager.pdf'}
+                          onChange={(e) => updateOnePagerField('documentFilename', e.target.value)}
+                          placeholder="Florian_Kusche_Instagram_Strategie_OnePager.pdf"
+                          className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono"
+                        />
+                      </div>
+
+                      {/* File Uploader Alternative */}
+                      <div className="pt-2 border-t border-zinc-200">
+                        <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">
+                          2. Alternativ: Datei direkt hochladen (max. 5 MB)
+                        </label>
+                        <DocumentUploader
+                          id="onepager-handout-doc"
+                          currentUrl={cmsData.onePager?.documentUrl}
+                          currentFilename={cmsData.onePager?.documentFilename}
+                          onChange={(url, filepath) => {
+                            updateOnePagerFields({
+                              documentUrl: url,
+                              documentFilename: filepath
+                            });
+                          }}
+                          label="Handout-Quelldatei für Kunden-Download"
+                        />
+                      </div>
                     </div>
 
                     {/* LOCAL SAVE ACTION BUTTON */}
@@ -4570,27 +4634,88 @@ export default function AdminBackend({ onClose }: { onClose: () => void }) {
                         </p>
                       </div>
 
-                      {/* 1. SECTION: DOCUMENT FILE UPLOAD */}
+                      {/* 1. SECTION: DOCUMENT FILE UPLOAD / SUPABASE LINK */}
                       <div className="bg-zinc-50 border border-zinc-200 p-5 rounded-xl space-y-4">
                         <div>
-                          <h4 className="text-sm font-bold text-zinc-900">One-Pager Dokument hochladen</h4>
+                          <h4 className="text-sm font-bold text-zinc-900 flex items-center justify-between flex-wrap gap-2">
+                            <span>One-Pager Dokument (Footer-PDF) hinterlegen</span>
+                            <span className="text-[10px] px-2 py-0.5 bg-[#0073aa] text-white font-mono rounded font-medium">Supabase URLs unterstützt</span>
+                          </h4>
                           <p className="text-xs text-zinc-500 mt-0.5">
-                            Lade hier deinen One-Pager (z. B. als PDF, Flyer oder Bild) hoch. Er wird im Footer als Button "Leistungsübersicht als PDF" angezeigt und steht deinen Nutzern zum Herunterladen/Ansehen bereit.
+                            Füge hier den öffentlichen PDF-Link von deinem Supabase Storage (oder externen Speicher) ein, oder lade die Datei hoch.
                           </p>
                         </div>
 
-                        <DocumentUploader
-                          id="footer-onepager-pdf-uploader"
-                          currentUrl={cmsData.footer?.pdfUrl || ''}
-                          currentFilename={cmsData.footer?.pdfFilename || ''}
-                          onChange={(url, filepath) => {
-                            updateFooterFields({
-                              pdfUrl: url,
-                              pdfFilename: filepath
-                            });
-                          }}
-                          label="Zugehöriges Dokument (*.pdf, *.txt, *.docx, *.png, *.jpg)"
-                        />
+                        {/* Direct Supabase / External Link Input */}
+                        <div className="space-y-1.5 bg-white p-3.5 border border-zinc-200 rounded-lg">
+                          <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider">
+                            1. Direkter Supabase / PDF-Link (URL)
+                          </label>
+                          <input
+                            type="url"
+                            value={
+                              cmsData.footer?.pdfUrl?.startsWith('data:') || cmsData.footer?.pdfUrl?.startsWith('chunked://')
+                                ? ''
+                                : (cmsData.footer?.pdfUrl ?? '')
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value.trim();
+                              let currentFn = cmsData.footer?.pdfFilename || '';
+                              if (val && !currentFn) {
+                                try {
+                                  const urlObj = new URL(val);
+                                  const lastPart = urlObj.pathname.split('/').pop();
+                                  if (lastPart && lastPart.includes('.')) {
+                                    currentFn = lastPart;
+                                  } else {
+                                    currentFn = 'Leistungsuebersicht.pdf';
+                                  }
+                                } catch {
+                                  currentFn = 'Leistungsuebersicht.pdf';
+                                }
+                              }
+                              updateFooterFields({
+                                pdfUrl: val,
+                                pdfFilename: currentFn || 'Leistungsuebersicht.pdf'
+                              });
+                            }}
+                            placeholder="https://xyz.supabase.co/storage/v1/object/public/documents/onepager.pdf"
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono"
+                          />
+                        </div>
+
+                        {/* Download Filename */}
+                        <div className="space-y-1.5 bg-white p-3.5 border border-zinc-200 rounded-lg">
+                          <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider">
+                            Download-Dateiname
+                          </label>
+                          <input
+                            type="text"
+                            value={cmsData.footer?.pdfFilename ?? 'Leistungsuebersicht.pdf'}
+                            onChange={(e) => updateFooterField('pdfFilename', e.target.value)}
+                            placeholder="Leistungsuebersicht.pdf"
+                            className="w-full p-2.5 border border-zinc-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#0073aa] text-zinc-900 font-mono"
+                          />
+                        </div>
+
+                        {/* File Uploader Alternative */}
+                        <div className="pt-2 border-t border-zinc-200">
+                          <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">
+                            2. Alternativ: Datei direkt hochladen (max. 5 MB)
+                          </label>
+                          <DocumentUploader
+                            id="footer-onepager-pdf-uploader"
+                            currentUrl={cmsData.footer?.pdfUrl || ''}
+                            currentFilename={cmsData.footer?.pdfFilename || ''}
+                            onChange={(url, filepath) => {
+                              updateFooterFields({
+                                pdfUrl: url,
+                                pdfFilename: filepath
+                              });
+                            }}
+                            label="Zugehöriges Dokument (*.pdf, *.txt, *.docx, *.png, *.jpg)"
+                          />
+                        </div>
                       </div>
 
                       {/* 2. SECTION: IMPRESSUM & DATENSCHUTZ TEXTS */}

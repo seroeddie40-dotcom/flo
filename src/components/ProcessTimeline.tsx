@@ -116,9 +116,6 @@ export default function ProcessTimeline({ onOpenBooking, processes, trustBlock }
               <span className="text-xs font-mono text-[#d6c3a3] tracking-wider uppercase font-semibold">
                 ONBOARDING ROADMAP (14 - 28 TAGE)
               </span>
-              <span className="py-0.5 px-2.5 bg-[#014e7a] text-accent text-[9px] font-mono rounded tracking-widest">
-                FOTO FOLGT SPÄTER
-              </span>
             </div>
 
             <p className="text-xs text-[#cce9ff]/90 leading-relaxed italic border-l-2 border-[#ffcc00]/50 pl-3">

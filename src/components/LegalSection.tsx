@@ -48,10 +48,9 @@ export default function LegalSection({ footer, onePager }: { footer?: FooterConf
         const link = document.createElement('a');
         link.href = blobUrl;
         
-        let targetFilename = fallbackDefault;
-        if (filename) {
-          const ext = filename.split('.').pop() || 'pdf';
-          targetFilename = `${filename.split('.')[0]}.${ext}`;
+        let targetFilename = filename || fallbackDefault;
+        if (!targetFilename.toLowerCase().endsWith('.pdf') && !targetFilename.includes('.')) {
+          targetFilename += '.pdf';
         }
         link.download = targetFilename;
         
@@ -60,15 +59,41 @@ export default function LegalSection({ footer, onePager }: { footer?: FooterConf
         document.body.removeChild(link);
         URL.revokeObjectURL(blobUrl);
       } else {
+        // External URL (e.g. Supabase Storage link or external cloud URL)
+        // Fetching as Blob ensures a direct file download prompt with the requested PDF filename
+        try {
+          const response = await fetch(activeUrl);
+          if (response.ok) {
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            
+            let targetFilename = filename || fallbackDefault;
+            if (!targetFilename.toLowerCase().endsWith('.pdf') && !targetFilename.includes('.')) {
+              targetFilename += '.pdf';
+            }
+            link.download = targetFilename;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+            return;
+          }
+        } catch (fetchErr) {
+          console.warn('Direct fetch for download failed (e.g. CORS), falling back to anchor trigger:', fetchErr);
+        }
+
+        // Direct anchor fallback
         const link = document.createElement('a');
         link.href = activeUrl;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         
-        let targetFilename = fallbackDefault;
-        if (filename) {
-          const ext = filename.split('.').pop() || 'pdf';
-          targetFilename = `${filename.split('.')[0]}.${ext}`;
+        let targetFilename = filename || fallbackDefault;
+        if (!targetFilename.toLowerCase().endsWith('.pdf') && !targetFilename.includes('.')) {
+          targetFilename += '.pdf';
         }
         link.download = targetFilename;
         
@@ -84,20 +109,19 @@ export default function LegalSection({ footer, onePager }: { footer?: FooterConf
   };
 
   const handleDownloadOnePager = () => {
-    // If we have an active onepager document URL, use its URL and filename
-    // Otherwise, if we have a footer PDF URL, use its URL and filename
+    // Check for OnePager document URL or Footer PDF URL (e.g. Supabase link or uploaded file)
     let urlToUse = '';
     let nameToUse = '';
-    let defaultName = 'Leistungsübersicht.pdf';
+    let defaultName = 'Florian_Kusche_Instagram_Strategie_OnePager.pdf';
 
-    if (footer?.pdfUrl && footer.pdfUrl !== '') {
-      urlToUse = footer.pdfUrl;
-      nameToUse = footer.pdfFilename || '';
-      defaultName = 'Leistungsübersicht.pdf';
-    } else if (onePager?.documentUrl && onePager.documentUrl !== '') {
+    if (onePager?.documentUrl && onePager.documentUrl !== '') {
       urlToUse = onePager.documentUrl;
-      nameToUse = onePager.documentFilename || '';
-      defaultName = 'One-Pager.pdf';
+      nameToUse = onePager.documentFilename || 'Florian_Kusche_Instagram_Strategie_OnePager.pdf';
+      defaultName = 'Florian_Kusche_Instagram_Strategie_OnePager.pdf';
+    } else if (footer?.pdfUrl && footer.pdfUrl !== '') {
+      urlToUse = footer.pdfUrl;
+      nameToUse = footer.pdfFilename || 'Leistungsübersicht.pdf';
+      defaultName = 'Leistungsübersicht.pdf';
     }
 
     if (urlToUse) {
